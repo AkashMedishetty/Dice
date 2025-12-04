@@ -26,23 +26,28 @@ export function GiftSplash({ gift, onClose }: GiftSplashProps) {
     // Set initial states
     gsap.set(expandRef.current, { 
       scale: 0, 
-      opacity: 1,
+      opacity: 0,
     });
-    gsap.set(ringsRef.current, { opacity: 0, scale: 0.5 });
+    gsap.set(ringsRef.current, { opacity: 0, scale: 0.3 });
 
-    // Dramatic expanding animation
+    // Slower, more dramatic expanding animation
     tl.to(expandRef.current, { 
-      scale: 4, 
-      duration: 1.2, 
-      ease: "power3.out",
+      opacity: 1,
+      duration: 0.5,
+      ease: "power2.in",
     })
+    .to(expandRef.current, { 
+      scale: 4, 
+      duration: 2.5, 
+      ease: "power2.out",
+    }, "-=0.2")
     .to(ringsRef.current, {
       opacity: 1,
       scale: 1,
-      duration: 0.8,
+      duration: 1.5,
       ease: "power2.out"
-    }, "-=0.6")
-    .call(() => setPhase("content"));
+    }, "-=1.5")
+    .call(() => setPhase("content"), [], "+=0.3");
 
     return () => {
       tl.kill();
@@ -58,52 +63,52 @@ export function GiftSplash({ gift, onClose }: GiftSplashProps) {
 
     // Set initial states for content
     gsap.set(contentRef.current, { opacity: 0 });
-    gsap.set(iconRef.current, { scale: 0, rotation: -360, y: 50 });
-    gsap.set(titleRef.current, { y: 40, opacity: 0 });
-    gsap.set(giftNameRef.current, { y: 30, opacity: 0, scale: 0.9 });
-    gsap.set(buttonRef.current, { y: 30, opacity: 0 });
+    gsap.set(iconRef.current, { scale: 0, rotation: -180, y: 80 });
+    gsap.set(titleRef.current, { y: 60, opacity: 0 });
+    gsap.set(giftNameRef.current, { y: 50, opacity: 0, scale: 0.8 });
+    gsap.set(buttonRef.current, { y: 40, opacity: 0 });
 
-    // Dramatic content reveal
+    // Slower, more dramatic content reveal
     tl.to(contentRef.current, { 
       opacity: 1, 
-      duration: 0.4, 
+      duration: 0.8, 
       ease: "power2.out" 
     })
     .to(iconRef.current, { 
       scale: 1, 
       rotation: 0,
       y: 0,
-      duration: 1, 
-      ease: "elastic.out(1, 0.6)" 
-    }, "-=0.2")
+      duration: 1.8, 
+      ease: "elastic.out(1, 0.5)" 
+    }, "-=0.4")
     .to(titleRef.current, { 
       y: 0, 
       opacity: 1, 
-      duration: 0.6, 
+      duration: 1, 
       ease: "power3.out" 
-    }, "-=0.6")
+    }, "-=1.2")
     .to(giftNameRef.current, { 
       y: 0, 
       opacity: 1, 
       scale: 1,
-      duration: 0.6, 
-      ease: "back.out(1.5)" 
-    }, "-=0.4")
+      duration: 1, 
+      ease: "back.out(1.2)" 
+    }, "-=0.6")
     .to(buttonRef.current, { 
       y: 0, 
       opacity: 1, 
-      duration: 0.5, 
+      duration: 0.8, 
       ease: "power2.out" 
-    }, "-=0.2");
+    }, "-=0.4");
 
     // Continuous floating for icon
     gsap.to(iconRef.current, {
-      y: -20,
-      duration: 2.5,
+      y: -15,
+      duration: 3,
       ease: "power1.inOut",
       yoyo: true,
       repeat: -1,
-      delay: 1
+      delay: 1.5
     });
 
     return () => {

@@ -56,25 +56,28 @@ export default function Index() {
   }, []);
 
   const handleRollComplete = useCallback((faceValue: number, position: [number, number, number]) => {
+    // Prevent multiple calls
+    if (diceState !== "rolling") return;
+    
     const gift = getGiftById(faceValue);
     if (gift) {
       const updatedGifts = decrementGiftInventory(faceValue);
       setGifts(updatedGifts);
       
-      // Store the result
+      // Store the result FIRST before state change
       setSettledFace(faceValue);
       setLandedPosition(position);
+      setWonGift(gift);
       
       // Move to settled state
       setDiceState("settled");
       
-      // Wait 2 seconds before showing splash
+      // Wait 3 seconds for dramatic effect before showing splash
       splashTimeoutRef.current = setTimeout(() => {
-        setWonGift(gift);
         setDiceState("showing-splash");
-      }, 2000);
+      }, 3000);
     }
-  }, []);
+  }, [diceState]);
 
   const handleSplashClose = () => {
     setWonGift(null);

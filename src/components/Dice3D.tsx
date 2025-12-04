@@ -6,24 +6,14 @@ import * as THREE from "three";
 
 type DiceState = "idle" | "rolling" | "settled" | "showing-splash";
 
-/*
- * Dice face positions in DiceModel:
- * - Face 1: Front (z+)  position [0, 0, 1.02]
- * - Face 6: Back (z-)   position [0, 0, -1.02]
- * - Face 2: Right (x+)  position [1.02, 0, 0]
- * - Face 5: Left (x-)   position [-1.02, 0, 0]
- * - Face 3: Top (y+)    position [0, 1.02, 0]
- * - Face 4: Bottom (y-) position [0, -1.02, 0]
- * 
- * Rotations to show each face on TOP (euler XYZ order):
- */
-const FACE_ROTATIONS: Record<number, [number, number, number]> = {
-  1: [Math.PI / 2, 0, 0],
-  2: [0, 0, -Math.PI / 2],
-  3: [0, 0, 0],
-  4: [Math.PI, 0, 0],
-  5: [0, 0, Math.PI / 2],
-  6: [-Math.PI / 2, 0, 0],
+// Face normals (direction each face points when dice is at identity rotation)
+const FACE_NORMALS: Record<number, THREE.Vector3> = {
+  1: new THREE.Vector3(0, 0, 1),   // Front
+  2: new THREE.Vector3(1, 0, 0),   // Right
+  3: new THREE.Vector3(0, 1, 0),   // Top
+  4: new THREE.Vector3(0, -1, 0),  // Bottom
+  5: new THREE.Vector3(-1, 0, 0),  // Left
+  6: new THREE.Vector3(0, 0, -1),  // Back
 };
 
 function Floor() {
@@ -36,82 +26,105 @@ function Floor() {
 }
 
 interface PhysicsDiceProps {
-  targetFace: number;
-  onRollComplete: (position: [number, number, number]) => void;
+  onRollComplete: (faceValue: number, position: [number, number, number]) => void;
+  validFaces: number[];
 }
 
-function PhysicsDice({ targetFace, onRollComplete }: PhysicsDiceProps) {
+function PhysicsDice({ onRollComplete, validFaces }: PhysicsDiceProps) {
   const positionRef = useRef<[number, number, number]>([0, 0, 0]);
+  const rotationRef = useRef<[number, number, number, number]>([0, 0, 0, 1]);
+  
   const [ref, api] = useBox<THREE.Group>(() => ({
     mass: 1,
     position: [0, 5, 0],
     rotation: [Math.random() * Math.PI * 2, Math.random() * Math.PI * 2, Math.random() * Math.PI * 2],
     args: [2, 2, 2],
-    material: { friction: 0.6, restitution: 0.2 },
+    material: { friction: 0.6, restitution: 0.3 },
   }));
 
-  const [phase, setPhase] = useState<"falling" | "settling" | "done">("falling");
+  const [phase, setPhase] = useState<"falling" | "detecting" | "done">("falling");
   const hasCompletedRef = useRef(false);
 
-  // Subscribe to position updates
+  // Subscribe to position and rotation updates
   useEffect(() => {
-    const unsubscribe = api.position.subscribe((pos) => {
+    const unsubPos = api.position.subscribe((pos) => {
       positionRef.current = [pos[0], pos[1], pos[2]];
     });
-    return () => unsubscribe();
+    const unsubRot = api.quaternion.subscribe((quat) => {
+      rotationRef.current = [quat[0], quat[1], quat[2], quat[3]];
+    });
+    return () => {
+      unsubPos();
+      unsubRot();
+    };
   }, [api]);
 
   // Start the roll
   useEffect(() => {
     api.position.set(0, 5, 0);
     api.velocity.set(
-      (Math.random() - 0.5) * 8,
-      -3,
-      (Math.random() - 0.5) * 8
+      (Math.random() - 0.5) * 6,
+      -2,
+      (Math.random() - 0.5) * 6
     );
     api.angularVelocity.set(
-      (Math.random() - 0.5) * 20,
-      (Math.random() - 0.5) * 20,
-      (Math.random() - 0.5) * 20
+      (Math.random() - 0.5) * 15,
+      (Math.random() - 0.5) * 15,
+      (Math.random() - 0.5) * 15
     );
 
+    // Wait for dice to settle naturally
     const settleTimeout = setTimeout(() => {
-      setPhase("settling");
-    }, 2500);
+      setPhase("detecting");
+    }, 3000);
 
     return () => clearTimeout(settleTimeout);
   }, [api]);
 
-  // Settle - just stop movement, keep position
+  // Detect which face is on top
   useEffect(() => {
-    if (phase === "settling") {
-      // Stop all movement but keep current position
+    if (phase === "detecting") {
+      // Stop the dice
       api.velocity.set(0, 0, 0);
       api.angularVelocity.set(0, 0, 0);
-      
-      // Get current position and set final rotation
-      const currentPos = positionRef.current;
-      const targetRotation = FACE_ROTATIONS[targetFace];
-      
-      // Keep X and Z position, set Y to rest on floor (dice is 2 units, floor at -2, so y = -1)
-      api.position.set(currentPos[0], -1, currentPos[2]);
-      api.rotation.set(targetRotation[0], targetRotation[1], targetRotation[2]);
 
-      const doneTimeout = setTimeout(() => {
+      // Get current quaternion
+      const quat = new THREE.Quaternion(
+        rotationRef.current[0],
+        rotationRef.current[1],
+        rotationRef.current[2],
+        rotationRef.current[3]
+      );
+
+      // Find which face is pointing up (highest Y after rotation)
+      let topFace = 3; // Default to face 3 (originally on top)
+      let maxY = -Infinity;
+
+      for (const [face, normal] of Object.entries(FACE_NORMALS)) {
+        const rotatedNormal = normal.clone().applyQuaternion(quat);
+        if (rotatedNormal.y > maxY) {
+          maxY = rotatedNormal.y;
+          topFace = parseInt(face);
+        }
+      }
+
+      // Check if this face has inventory, if not find nearest valid face
+      let finalFace = topFace;
+      if (!validFaces.includes(topFace)) {
+        // Pick a random valid face
+        finalFace = validFaces[Math.floor(Math.random() * validFaces.length)] || 1;
+      }
+
+      // Small delay then complete
+      setTimeout(() => {
         setPhase("done");
-      }, 600);
-
-      return () => clearTimeout(doneTimeout);
+        if (!hasCompletedRef.current) {
+          hasCompletedRef.current = true;
+          onRollComplete(finalFace, positionRef.current);
+        }
+      }, 300);
     }
-  }, [phase, targetFace, api]);
-
-  // Notify completion with final position
-  useEffect(() => {
-    if (phase === "done" && !hasCompletedRef.current) {
-      hasCompletedRef.current = true;
-      onRollComplete(positionRef.current);
-    }
-  }, [phase, onRollComplete]);
+  }, [phase, api, onRollComplete, validFaces]);
 
   return (
     <group ref={ref}>
@@ -121,19 +134,28 @@ function PhysicsDice({ targetFace, onRollComplete }: PhysicsDiceProps) {
 }
 
 interface SettledDiceProps {
-  targetFace: number;
+  faceValue: number;
   position: [number, number, number];
 }
 
-function SettledDice({ targetFace, position }: SettledDiceProps) {
+// Rotations to show each face on TOP
+const FACE_ROTATIONS: Record<number, [number, number, number]> = {
+  1: [Math.PI / 2, 0, 0],
+  2: [0, 0, -Math.PI / 2],
+  3: [0, 0, 0],
+  4: [Math.PI, 0, 0],
+  5: [0, 0, Math.PI / 2],
+  6: [-Math.PI / 2, 0, 0],
+};
+
+function SettledDice({ faceValue, position }: SettledDiceProps) {
   const meshRef = useRef<THREE.Group>(null);
-  const targetRotation = FACE_ROTATIONS[targetFace];
-  const baseY = position[1];
+  const targetRotation = FACE_ROTATIONS[faceValue] || [0, 0, 0];
 
   useFrame((state) => {
     if (meshRef.current) {
-      // Very subtle floating at landed position
-      meshRef.current.position.y = baseY + Math.sin(state.clock.elapsedTime * 0.8) * 0.03;
+      // Very subtle floating
+      meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 0.8) * 0.02;
     }
   });
 
@@ -206,13 +228,14 @@ function LoadingDice() {
 
 interface Dice3DProps {
   diceState: DiceState;
-  targetFace: number;
-  onRollComplete: (position: [number, number, number]) => void;
+  onRollComplete: (faceValue: number, position: [number, number, number]) => void;
   isDark?: boolean;
+  settledFace?: number;
   landedPosition?: [number, number, number];
+  validFaces: number[];
 }
 
-export function Dice3D({ diceState, targetFace, onRollComplete, isDark = false, landedPosition }: Dice3DProps) {
+export function Dice3D({ diceState, onRollComplete, isDark = false, settledFace, landedPosition, validFaces }: Dice3DProps) {
   const [rollKey, setRollKey] = useState(0);
   const bgColor = isDark ? "#0a0f1a" : "#f0f4ff";
 
@@ -229,14 +252,14 @@ export function Dice3D({ diceState, targetFace, onRollComplete, isDark = false, 
         return <IdleDice />;
       case "rolling":
         return (
-          <Physics gravity={[0, -30, 0]} key={rollKey}>
+          <Physics gravity={[0, -25, 0]} key={rollKey}>
             <Floor />
-            <PhysicsDice targetFace={targetFace} onRollComplete={onRollComplete} />
+            <PhysicsDice onRollComplete={onRollComplete} validFaces={validFaces} />
           </Physics>
         );
       case "settled":
       case "showing-splash":
-        return <SettledDice targetFace={targetFace} position={landedPosition || [0, -1, 0]} />;
+        return <SettledDice faceValue={settledFace || 1} position={landedPosition || [0, -1, 0]} />;
       default:
         return <IdleDice />;
     }

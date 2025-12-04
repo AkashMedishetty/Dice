@@ -22,15 +22,17 @@ export default function Index() {
   const { theme, toggleTheme } = useTheme();
   const [gifts, setGifts] = useState<GiftConfig[]>(getGifts());
   const [diceState, setDiceState] = useState<DiceState>("idle");
-  const [targetFace, setTargetFace] = useState(1);
+  const [settledFace, setSettledFace] = useState<number>(1);
   const [landedPosition, setLandedPosition] = useState<[number, number, number]>([0, -1, 0]);
   const [wonGift, setWonGift] = useState<GiftConfig | null>(null);
   const [canRoll, setCanRoll] = useState(hasAnyInventory());
+  const [validFaces, setValidFaces] = useState<number[]>(getActiveGiftIds());
   const splashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setGifts(getGifts());
     setCanRoll(hasAnyInventory());
+    setValidFaces(getActiveGiftIds());
   }, []);
 
   // Cleanup timeout on unmount
@@ -49,20 +51,18 @@ export default function Index() {
       return;
     }
 
-    const randomIndex = Math.floor(Math.random() * activeIds.length);
-    const selectedGiftId = activeIds[randomIndex];
-
-    setTargetFace(selectedGiftId);
+    setValidFaces(activeIds);
     setDiceState("rolling");
   }, []);
 
-  const handleRollComplete = useCallback((position: [number, number, number]) => {
-    const gift = getGiftById(targetFace);
+  const handleRollComplete = useCallback((faceValue: number, position: [number, number, number]) => {
+    const gift = getGiftById(faceValue);
     if (gift) {
-      const updatedGifts = decrementGiftInventory(targetFace);
+      const updatedGifts = decrementGiftInventory(faceValue);
       setGifts(updatedGifts);
       
-      // Store the landed position
+      // Store the result
+      setSettledFace(faceValue);
       setLandedPosition(position);
       
       // Move to settled state
@@ -74,12 +74,13 @@ export default function Index() {
         setDiceState("showing-splash");
       }, 2000);
     }
-  }, [targetFace]);
+  }, []);
 
   const handleSplashClose = () => {
     setWonGift(null);
     setDiceState("idle");
     setCanRoll(hasAnyInventory());
+    setValidFaces(getActiveGiftIds());
   };
 
   const isRolling = diceState === "rolling";
@@ -89,10 +90,11 @@ export default function Index() {
       {/* Full-screen 3D Canvas */}
       <Dice3D
         diceState={diceState}
-        targetFace={targetFace}
         onRollComplete={handleRollComplete}
         isDark={theme === "dark"}
+        settledFace={settledFace}
         landedPosition={landedPosition}
+        validFaces={validFaces}
       />
 
       {/* Header Overlay */}

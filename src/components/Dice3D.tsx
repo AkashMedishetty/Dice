@@ -3,7 +3,6 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { RoundedBox, Text, Environment, ContactShadows, OrbitControls } from "@react-three/drei";
 import { Physics, useBox, usePlane } from "@react-three/cannon";
 import * as THREE from "three";
-import { gsap } from "gsap";
 
 interface DiceProps {
   rolling: boolean;
@@ -72,7 +71,6 @@ function PhysicsDice({ rolling, targetFace, onRollComplete }: DiceProps) {
     if (isSettling && !hasCompletedRef.current) {
       const targetRotation = FACE_ROTATIONS[targetFace];
       
-      // Smoothly transition to final position
       api.velocity.set(0, 0, 0);
       api.angularVelocity.set(0, 0, 0);
       api.position.set(0, 0, 0);
@@ -95,6 +93,24 @@ function PhysicsDice({ rolling, targetFace, onRollComplete }: DiceProps) {
 
   return (
     <group ref={ref}>
+      <DiceModel />
+    </group>
+  );
+}
+
+function SettledDice({ targetFace }: { targetFace: number }) {
+  const meshRef = useRef<THREE.Group>(null);
+  const targetRotation = FACE_ROTATIONS[targetFace];
+
+  useFrame((state) => {
+    if (meshRef.current) {
+      // Gentle floating while settled
+      meshRef.current.position.y = Math.sin(state.clock.elapsedTime * 0.5) * 0.05;
+    }
+  });
+
+  return (
+    <group ref={meshRef} rotation={targetRotation}>
       <DiceModel />
     </group>
   );
@@ -165,10 +181,11 @@ interface Dice3DProps {
   targetFace: number;
   onRollComplete: () => void;
   isDark?: boolean;
+  keepPosition?: boolean;
 }
 
-export function Dice3D({ rolling, targetFace, onRollComplete, isDark = false }: Dice3DProps) {
-  const key = useMemo(() => (rolling ? Date.now() : "idle"), [rolling]);
+export function Dice3D({ rolling, targetFace, onRollComplete, isDark = false, keepPosition = false }: Dice3DProps) {
+  const key = useMemo(() => (rolling && !keepPosition ? Date.now() : "stable"), [rolling, keepPosition]);
   const bgColor = isDark ? "#0a0f1a" : "#f0f4ff";
 
   return (
@@ -198,7 +215,10 @@ export function Dice3D({ rolling, targetFace, onRollComplete, isDark = false }: 
         />
 
         <Suspense fallback={<LoadingDice />}>
-          {rolling ? (
+          {keepPosition ? (
+            // Show settled dice in final position
+            <SettledDice targetFace={targetFace} />
+          ) : rolling ? (
             <Physics gravity={[0, -25, 0]} key={key}>
               <Floor />
               <PhysicsDice rolling={rolling} targetFace={targetFace} onRollComplete={onRollComplete} />
@@ -222,7 +242,7 @@ export function Dice3D({ rolling, targetFace, onRollComplete, isDark = false }: 
           enablePan={false} 
           maxPolarAngle={Math.PI / 2}
           minPolarAngle={Math.PI / 4}
-          autoRotate={!rolling}
+          autoRotate={!rolling && !keepPosition}
           autoRotateSpeed={0.5}
         />
       </Canvas>

@@ -20,6 +20,7 @@ export default function Index() {
   const { theme, toggleTheme } = useTheme();
   const [gifts, setGifts] = useState<GiftConfig[]>(getGifts());
   const [rolling, setRolling] = useState(false);
+  const [diceSettled, setDiceSettled] = useState(false);
   const [targetFace, setTargetFace] = useState(1);
   const [wonGift, setWonGift] = useState<GiftConfig | null>(null);
   const [canRoll, setCanRoll] = useState(hasAnyInventory());
@@ -41,6 +42,7 @@ export default function Index() {
 
     setTargetFace(selectedGiftId);
     setRolling(true);
+    setDiceSettled(false);
   }, []);
 
   const handleRollComplete = useCallback(() => {
@@ -48,14 +50,21 @@ export default function Index() {
     if (gift) {
       const updatedGifts = decrementGiftInventory(targetFace);
       setGifts(updatedGifts);
-      setWonGift(gift);
-      setCanRoll(hasAnyInventory());
+      setDiceSettled(true);
+      // Small delay before showing splash for dramatic effect
+      setTimeout(() => {
+        setWonGift(gift);
+      }, 300);
     }
-    setRolling(false);
+    // Don't set rolling to false yet - keep dice in position
   }, [targetFace]);
 
   const handleSplashClose = () => {
     setWonGift(null);
+    // Only reset the dice state after splash is closed
+    setRolling(false);
+    setDiceSettled(false);
+    setCanRoll(hasAnyInventory());
   };
 
   return (
@@ -66,6 +75,7 @@ export default function Index() {
         targetFace={targetFace}
         onRollComplete={handleRollComplete}
         isDark={theme === "dark"}
+        keepPosition={diceSettled}
       />
 
       {/* Header Overlay */}
@@ -89,11 +99,11 @@ export default function Index() {
       <div className="absolute bottom-0 left-0 right-0 z-10 flex flex-col items-center gap-4 p-8 pb-12">
         <RollButton
           onClick={handleRoll}
-          disabled={!canRoll}
-          rolling={rolling}
+          disabled={!canRoll || rolling || diceSettled}
+          rolling={rolling && !diceSettled}
         />
 
-        {!canRoll && (
+        {!canRoll && !wonGift && (
           <p className="rounded-full bg-destructive/90 px-6 py-2 text-center text-sm font-medium text-destructive-foreground backdrop-blur-sm">
             All gifts have been claimed!
           </p>

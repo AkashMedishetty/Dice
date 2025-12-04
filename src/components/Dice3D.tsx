@@ -26,7 +26,7 @@ function Floor() {
 }
 
 interface PhysicsDiceProps {
-  onRollComplete: (faceValue: number, position: [number, number, number]) => void;
+  onRollComplete: (faceValue: number, position: [number, number, number], quaternion: [number, number, number, number]) => void;
   validFaces: number[];
 }
 
@@ -123,8 +123,8 @@ function PhysicsDice({ onRollComplete, validFaces }: PhysicsDiceProps) {
           finalFace = validFaces[Math.floor(Math.random() * validFaces.length)] || 1;
         }
 
-        // Immediately call onRollComplete with captured values
-        onRollComplete(finalFace, [...lastPosition.current] as [number, number, number]);
+        // Immediately call onRollComplete with captured values including quaternion
+        onRollComplete(finalFace, [...lastPosition.current] as [number, number, number], [...lastQuaternion.current] as [number, number, number, number]);
       }
     } else {
       stableFrames.current = 0;
@@ -141,33 +141,31 @@ function PhysicsDice({ onRollComplete, validFaces }: PhysicsDiceProps) {
 }
 
 interface SettledDiceProps {
-  faceValue: number;
   position: [number, number, number];
+  quaternion: [number, number, number, number];
 }
 
-// Rotations to show each face on TOP
-const FACE_ROTATIONS: Record<number, [number, number, number]> = {
-  1: [Math.PI / 2, 0, 0],
-  2: [0, 0, -Math.PI / 2],
-  3: [0, 0, 0],
-  4: [Math.PI, 0, 0],
-  5: [0, 0, Math.PI / 2],
-  6: [-Math.PI / 2, 0, 0],
-};
-
-function SettledDice({ faceValue, position }: SettledDiceProps) {
+function SettledDice({ position, quaternion }: SettledDiceProps) {
   const meshRef = useRef<THREE.Group>(null);
-  const targetRotation = FACE_ROTATIONS[faceValue] || [0, 0, 0];
 
   useFrame((state) => {
     if (meshRef.current) {
-      // Very subtle floating
+      // Very subtle floating while keeping exact rotation
       meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 0.8) * 0.02;
     }
   });
 
+  // Apply the exact quaternion from the physics simulation
+  const rotation = new THREE.Euler().setFromQuaternion(
+    new THREE.Quaternion(quaternion[0], quaternion[1], quaternion[2], quaternion[3])
+  );
+
   return (
-    <group ref={meshRef} position={[position[0], position[1], position[2]]} rotation={targetRotation}>
+    <group 
+      ref={meshRef} 
+      position={[position[0], position[1], position[2]]} 
+      rotation={[rotation.x, rotation.y, rotation.z]}
+    >
       <DiceModel />
     </group>
   );
@@ -235,14 +233,15 @@ function LoadingDice() {
 
 interface Dice3DProps {
   diceState: DiceState;
-  onRollComplete: (faceValue: number, position: [number, number, number]) => void;
+  onRollComplete: (faceValue: number, position: [number, number, number], quaternion: [number, number, number, number]) => void;
   isDark?: boolean;
   settledFace?: number;
   landedPosition?: [number, number, number];
+  landedQuaternion?: [number, number, number, number];
   validFaces: number[];
 }
 
-export function Dice3D({ diceState, onRollComplete, isDark = false, settledFace, landedPosition, validFaces }: Dice3DProps) {
+export function Dice3D({ diceState, onRollComplete, isDark = false, settledFace, landedPosition, landedQuaternion, validFaces }: Dice3DProps) {
   const [rollKey, setRollKey] = useState(0);
   const bgColor = isDark ? "#0a0f1a" : "#f0f4ff";
 
@@ -266,7 +265,7 @@ export function Dice3D({ diceState, onRollComplete, isDark = false, settledFace,
         );
       case "settled":
       case "showing-splash":
-        return <SettledDice faceValue={settledFace || 1} position={landedPosition || [0, -1, 0]} />;
+        return <SettledDice position={landedPosition || [0, -1, 0]} quaternion={landedQuaternion || [0, 0, 0, 1]} />;
       default:
         return <IdleDice />;
     }

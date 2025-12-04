@@ -24,6 +24,7 @@ export default function Index() {
   const [diceState, setDiceState] = useState<DiceState>("idle");
   const [settledFace, setSettledFace] = useState<number>(1);
   const [landedPosition, setLandedPosition] = useState<[number, number, number]>([0, -1, 0]);
+  const [landedQuaternion, setLandedQuaternion] = useState<[number, number, number, number]>([0, 0, 0, 1]);
   const [wonGift, setWonGift] = useState<GiftConfig | null>(null);
   const [canRoll, setCanRoll] = useState(hasAnyInventory());
   const [validFaces, setValidFaces] = useState<number[]>(getActiveGiftIds());
@@ -55,7 +56,7 @@ export default function Index() {
     setDiceState("rolling");
   }, []);
 
-  const handleRollComplete = useCallback((faceValue: number, position: [number, number, number]) => {
+  const handleRollComplete = useCallback((faceValue: number, position: [number, number, number], quaternion: [number, number, number, number]) => {
     // Prevent multiple calls
     if (diceState !== "rolling") return;
     
@@ -64,9 +65,10 @@ export default function Index() {
       const updatedGifts = decrementGiftInventory(faceValue);
       setGifts(updatedGifts);
       
-      // Store the result FIRST before state change
+      // Store the result FIRST before state change - including exact quaternion
       setSettledFace(faceValue);
       setLandedPosition(position);
+      setLandedQuaternion(quaternion);
       setWonGift(gift);
       
       // Move to settled state
@@ -97,6 +99,7 @@ export default function Index() {
         isDark={theme === "dark"}
         settledFace={settledFace}
         landedPosition={landedPosition}
+        landedQuaternion={landedQuaternion}
         validFaces={validFaces}
       />
 

@@ -6,14 +6,24 @@ import * as THREE from "three";
 
 type DiceState = "idle" | "rolling" | "settled" | "showing-splash";
 
-// Face rotations to show each number on top
+/*
+ * Dice face positions in DiceModel:
+ * - Face 1: Front (z+)  position [0, 0, 1.02]
+ * - Face 6: Back (z-)   position [0, 0, -1.02]
+ * - Face 2: Right (x+)  position [1.02, 0, 0]
+ * - Face 5: Left (x-)   position [-1.02, 0, 0]
+ * - Face 3: Top (y+)    position [0, 1.02, 0]
+ * - Face 4: Bottom (y-) position [0, -1.02, 0]
+ * 
+ * Rotations to show each face on TOP (euler XYZ order):
+ */
 const FACE_ROTATIONS: Record<number, [number, number, number]> = {
-  1: [0, 0, 0],
-  2: [0, 0, Math.PI / 2],
-  3: [Math.PI / 2, 0, 0],
-  4: [-Math.PI / 2, 0, 0],
-  5: [0, 0, -Math.PI / 2],
-  6: [Math.PI, 0, 0],
+  1: [Math.PI / 2, 0, 0],     // Rotate X +90° to bring front to top
+  2: [0, 0, -Math.PI / 2],    // Rotate Z -90° to bring right to top
+  3: [0, 0, 0],               // Already on top
+  4: [Math.PI, 0, 0],         // Rotate X 180° to flip
+  5: [0, 0, Math.PI / 2],     // Rotate Z +90° to bring left to top
+  6: [-Math.PI / 2, 0, 0],    // Rotate X -90° to bring back to top
 };
 
 function Floor() {
@@ -34,9 +44,9 @@ function PhysicsDice({ targetFace, onRollComplete }: PhysicsDiceProps) {
   const [ref, api] = useBox<THREE.Group>(() => ({
     mass: 1,
     position: [0, 6, 0],
-    rotation: [Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI],
+    rotation: [Math.random() * Math.PI * 2, Math.random() * Math.PI * 2, Math.random() * Math.PI * 2],
     args: [2, 2, 2],
-    material: { friction: 0.3, restitution: 0.2 },
+    material: { friction: 0.4, restitution: 0.3 },
   }));
 
   const [phase, setPhase] = useState<"falling" | "settling" | "done">("falling");
@@ -46,19 +56,19 @@ function PhysicsDice({ targetFace, onRollComplete }: PhysicsDiceProps) {
   useEffect(() => {
     api.position.set(0, 6, 0);
     api.velocity.set(
-      (Math.random() - 0.5) * 10,
-      -5,
-      (Math.random() - 0.5) * 10
+      (Math.random() - 0.5) * 12,
+      -8,
+      (Math.random() - 0.5) * 12
     );
     api.angularVelocity.set(
-      (Math.random() - 0.5) * 25,
-      (Math.random() - 0.5) * 25,
-      (Math.random() - 0.5) * 25
+      (Math.random() - 0.5) * 30,
+      (Math.random() - 0.5) * 30,
+      (Math.random() - 0.5) * 30
     );
 
     const settleTimeout = setTimeout(() => {
       setPhase("settling");
-    }, 2000);
+    }, 2200);
 
     return () => clearTimeout(settleTimeout);
   }, [api]);
@@ -67,14 +77,16 @@ function PhysicsDice({ targetFace, onRollComplete }: PhysicsDiceProps) {
   useEffect(() => {
     if (phase === "settling") {
       const targetRotation = FACE_ROTATIONS[targetFace];
+      
+      // Stop physics and set final position
       api.velocity.set(0, 0, 0);
       api.angularVelocity.set(0, 0, 0);
       api.position.set(0, 0, 0);
-      api.rotation.set(...targetRotation);
+      api.rotation.set(targetRotation[0], targetRotation[1], targetRotation[2]);
 
       const doneTimeout = setTimeout(() => {
         setPhase("done");
-      }, 400);
+      }, 500);
 
       return () => clearTimeout(doneTimeout);
     }
@@ -101,6 +113,7 @@ function SettledDice({ targetFace }: { targetFace: number }) {
 
   useFrame((state) => {
     if (meshRef.current) {
+      // Gentle floating animation
       meshRef.current.position.y = Math.sin(state.clock.elapsedTime * 0.5) * 0.08;
     }
   });
@@ -118,21 +131,27 @@ function DiceModel() {
       <RoundedBox args={[2, 2, 2]} radius={0.15} smoothness={4}>
         <meshStandardMaterial color="#0338cd" metalness={0.5} roughness={0.1} envMapIntensity={1.2} />
       </RoundedBox>
+      {/* Face 1 - Front (z+) */}
       <Text position={[0, 0, 1.02]} fontSize={0.7} color="white" anchorX="center" anchorY="middle">
         1
       </Text>
+      {/* Face 6 - Back (z-) */}
       <Text position={[0, 0, -1.02]} fontSize={0.7} color="white" rotation={[0, Math.PI, 0]} anchorX="center" anchorY="middle">
         6
       </Text>
+      {/* Face 2 - Right (x+) */}
       <Text position={[1.02, 0, 0]} fontSize={0.7} color="white" rotation={[0, Math.PI / 2, 0]} anchorX="center" anchorY="middle">
         2
       </Text>
+      {/* Face 5 - Left (x-) */}
       <Text position={[-1.02, 0, 0]} fontSize={0.7} color="white" rotation={[0, -Math.PI / 2, 0]} anchorX="center" anchorY="middle">
         5
       </Text>
+      {/* Face 3 - Top (y+) */}
       <Text position={[0, 1.02, 0]} fontSize={0.7} color="white" rotation={[-Math.PI / 2, 0, 0]} anchorX="center" anchorY="middle">
         3
       </Text>
+      {/* Face 4 - Bottom (y-) */}
       <Text position={[0, -1.02, 0]} fontSize={0.7} color="white" rotation={[Math.PI / 2, 0, 0]} anchorX="center" anchorY="middle">
         4
       </Text>

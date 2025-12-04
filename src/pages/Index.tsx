@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Dice3D } from "@/components/Dice3D";
 import { RollButton } from "@/components/RollButton";
@@ -16,18 +16,29 @@ import {
 import { Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+type DiceState = "idle" | "rolling" | "settled" | "showing-splash";
+
 export default function Index() {
   const { theme, toggleTheme } = useTheme();
   const [gifts, setGifts] = useState<GiftConfig[]>(getGifts());
-  const [rolling, setRolling] = useState(false);
-  const [diceSettled, setDiceSettled] = useState(false);
+  const [diceState, setDiceState] = useState<DiceState>("idle");
   const [targetFace, setTargetFace] = useState(1);
   const [wonGift, setWonGift] = useState<GiftConfig | null>(null);
   const [canRoll, setCanRoll] = useState(hasAnyInventory());
+  const splashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setGifts(getGifts());
     setCanRoll(hasAnyInventory());
+  }, []);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (splashTimeoutRef.current) {
+        clearTimeout(splashTimeoutRef.current);
+      }
+    };
   }, []);
 
   const handleRoll = useCallback(() => {
@@ -41,8 +52,7 @@ export default function Index() {
     const selectedGiftId = activeIds[randomIndex];
 
     setTargetFace(selectedGiftId);
-    setRolling(true);
-    setDiceSettled(false);
+    setDiceState("rolling");
   }, []);
 
   const handleRollComplete = useCallback(() => {
@@ -50,32 +60,35 @@ export default function Index() {
     if (gift) {
       const updatedGifts = decrementGiftInventory(targetFace);
       setGifts(updatedGifts);
-      setDiceSettled(true);
-      // Small delay before showing splash for dramatic effect
-      setTimeout(() => {
+      
+      // Move to settled state
+      setDiceState("settled");
+      
+      // Wait 2 seconds before showing splash
+      splashTimeoutRef.current = setTimeout(() => {
         setWonGift(gift);
-      }, 300);
+        setDiceState("showing-splash");
+      }, 2000);
     }
-    // Don't set rolling to false yet - keep dice in position
   }, [targetFace]);
 
   const handleSplashClose = () => {
     setWonGift(null);
-    // Only reset the dice state after splash is closed
-    setRolling(false);
-    setDiceSettled(false);
+    setDiceState("idle");
     setCanRoll(hasAnyInventory());
   };
+
+  const isRolling = diceState === "rolling";
+  const isSettled = diceState === "settled" || diceState === "showing-splash";
 
   return (
     <div className="relative h-screen w-screen overflow-hidden">
       {/* Full-screen 3D Canvas */}
       <Dice3D
-        rolling={rolling}
+        diceState={diceState}
         targetFace={targetFace}
         onRollComplete={handleRollComplete}
         isDark={theme === "dark"}
-        keepPosition={diceSettled}
       />
 
       {/* Header Overlay */}
@@ -99,11 +112,11 @@ export default function Index() {
       <div className="absolute bottom-0 left-0 right-0 z-10 flex flex-col items-center gap-4 p-8 pb-12">
         <RollButton
           onClick={handleRoll}
-          disabled={!canRoll || rolling || diceSettled}
-          rolling={rolling && !diceSettled}
+          disabled={!canRoll || diceState !== "idle"}
+          rolling={isRolling}
         />
 
-        {!canRoll && !wonGift && (
+        {!canRoll && diceState === "idle" && (
           <p className="rounded-full bg-destructive/90 px-6 py-2 text-center text-sm font-medium text-destructive-foreground backdrop-blur-sm">
             All gifts have been claimed!
           </p>
@@ -111,7 +124,9 @@ export default function Index() {
       </div>
 
       {/* Gift Splash Screen */}
-      {wonGift && <GiftSplash gift={wonGift} onClose={handleSplashClose} />}
+      {wonGift && diceState === "showing-splash" && (
+        <GiftSplash gift={wonGift} onClose={handleSplashClose} />
+      )}
     </div>
   );
 }

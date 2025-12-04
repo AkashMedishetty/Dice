@@ -1,14 +1,10 @@
-import { useRef, useState, useEffect, useMemo, Suspense } from "react";
+import { useRef, useState, useEffect, Suspense } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { RoundedBox, Text, Environment, ContactShadows, OrbitControls } from "@react-three/drei";
 import { Physics, useBox, usePlane } from "@react-three/cannon";
 import * as THREE from "three";
 
-interface DiceProps {
-  rolling: boolean;
-  targetFace: number;
-  onRollComplete: () => void;
-}
+type DiceState = "idle" | "rolling" | "settled" | "showing-splash";
 
 // Face rotations to show each number on top
 const FACE_ROTATIONS: Record<number, [number, number, number]> = {
@@ -29,67 +25,68 @@ function Floor() {
   return <mesh ref={ref} visible={false} />;
 }
 
-function PhysicsDice({ rolling, targetFace, onRollComplete }: DiceProps) {
+interface PhysicsDiceProps {
+  targetFace: number;
+  onRollComplete: () => void;
+}
+
+function PhysicsDice({ targetFace, onRollComplete }: PhysicsDiceProps) {
   const [ref, api] = useBox<THREE.Group>(() => ({
     mass: 1,
-    position: [0, 5, 0],
+    position: [0, 6, 0],
     rotation: [Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI],
     args: [2, 2, 2],
     material: { friction: 0.3, restitution: 0.2 },
   }));
 
-  const [isSettling, setIsSettling] = useState(false);
-  const settleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [phase, setPhase] = useState<"falling" | "settling" | "done">("falling");
   const hasCompletedRef = useRef(false);
 
+  // Start the roll
   useEffect(() => {
-    if (rolling && !hasCompletedRef.current) {
-      setIsSettling(false);
-      api.position.set(0, 6, 0);
-      api.velocity.set(
-        (Math.random() - 0.5) * 10,
-        -5,
-        (Math.random() - 0.5) * 10
-      );
-      api.angularVelocity.set(
-        (Math.random() - 0.5) * 25,
-        (Math.random() - 0.5) * 25,
-        (Math.random() - 0.5) * 25
-      );
+    api.position.set(0, 6, 0);
+    api.velocity.set(
+      (Math.random() - 0.5) * 10,
+      -5,
+      (Math.random() - 0.5) * 10
+    );
+    api.angularVelocity.set(
+      (Math.random() - 0.5) * 25,
+      (Math.random() - 0.5) * 25,
+      (Math.random() - 0.5) * 25
+    );
 
-      if (settleTimeoutRef.current) {
-        clearTimeout(settleTimeoutRef.current);
-      }
+    const settleTimeout = setTimeout(() => {
+      setPhase("settling");
+    }, 2000);
 
-      settleTimeoutRef.current = setTimeout(() => {
-        setIsSettling(true);
-      }, 2000);
-    }
-  }, [rolling, api]);
+    return () => clearTimeout(settleTimeout);
+  }, [api]);
 
+  // Settle to final position
   useEffect(() => {
-    if (isSettling && !hasCompletedRef.current) {
+    if (phase === "settling") {
       const targetRotation = FACE_ROTATIONS[targetFace];
-      
       api.velocity.set(0, 0, 0);
       api.angularVelocity.set(0, 0, 0);
       api.position.set(0, 0, 0);
       api.rotation.set(...targetRotation);
 
-      setTimeout(() => {
-        if (!hasCompletedRef.current) {
-          hasCompletedRef.current = true;
-          onRollComplete();
-        }
-      }, 500);
-    }
-  }, [isSettling, targetFace, api, onRollComplete]);
+      const doneTimeout = setTimeout(() => {
+        setPhase("done");
+      }, 400);
 
-  useEffect(() => {
-    if (!rolling) {
-      hasCompletedRef.current = false;
+      return () => clearTimeout(doneTimeout);
     }
-  }, [rolling]);
+  }, [phase, targetFace, api]);
+
+  // Notify completion
+  useEffect(() => {
+    if (phase === "done" && !hasCompletedRef.current) {
+      hasCompletedRef.current = true;
+      onRollComplete();
+    }
+  }, [phase, onRollComplete]);
 
   return (
     <group ref={ref}>
@@ -104,8 +101,7 @@ function SettledDice({ targetFace }: { targetFace: number }) {
 
   useFrame((state) => {
     if (meshRef.current) {
-      // Gentle floating while settled
-      meshRef.current.position.y = Math.sin(state.clock.elapsedTime * 0.5) * 0.05;
+      meshRef.current.position.y = Math.sin(state.clock.elapsedTime * 0.5) * 0.08;
     }
   });
 
@@ -122,27 +118,21 @@ function DiceModel() {
       <RoundedBox args={[2, 2, 2]} radius={0.15} smoothness={4}>
         <meshStandardMaterial color="#0338cd" metalness={0.5} roughness={0.1} envMapIntensity={1.2} />
       </RoundedBox>
-      {/* Face 1 - Front */}
       <Text position={[0, 0, 1.02]} fontSize={0.7} color="white" anchorX="center" anchorY="middle">
         1
       </Text>
-      {/* Face 6 - Back */}
       <Text position={[0, 0, -1.02]} fontSize={0.7} color="white" rotation={[0, Math.PI, 0]} anchorX="center" anchorY="middle">
         6
       </Text>
-      {/* Face 2 - Right */}
       <Text position={[1.02, 0, 0]} fontSize={0.7} color="white" rotation={[0, Math.PI / 2, 0]} anchorX="center" anchorY="middle">
         2
       </Text>
-      {/* Face 5 - Left */}
       <Text position={[-1.02, 0, 0]} fontSize={0.7} color="white" rotation={[0, -Math.PI / 2, 0]} anchorX="center" anchorY="middle">
         5
       </Text>
-      {/* Face 3 - Top */}
       <Text position={[0, 1.02, 0]} fontSize={0.7} color="white" rotation={[-Math.PI / 2, 0, 0]} anchorX="center" anchorY="middle">
         3
       </Text>
-      {/* Face 4 - Bottom */}
       <Text position={[0, -1.02, 0]} fontSize={0.7} color="white" rotation={[Math.PI / 2, 0, 0]} anchorX="center" anchorY="middle">
         4
       </Text>
@@ -177,16 +167,41 @@ function LoadingDice() {
 }
 
 interface Dice3DProps {
-  rolling: boolean;
+  diceState: DiceState;
   targetFace: number;
   onRollComplete: () => void;
   isDark?: boolean;
-  keepPosition?: boolean;
 }
 
-export function Dice3D({ rolling, targetFace, onRollComplete, isDark = false, keepPosition = false }: Dice3DProps) {
-  const key = useMemo(() => (rolling && !keepPosition ? Date.now() : "stable"), [rolling, keepPosition]);
+export function Dice3D({ diceState, targetFace, onRollComplete, isDark = false }: Dice3DProps) {
+  const [rollKey, setRollKey] = useState(0);
   const bgColor = isDark ? "#0a0f1a" : "#f0f4ff";
+
+  // Generate new key only when starting a new roll
+  useEffect(() => {
+    if (diceState === "rolling") {
+      setRollKey(Date.now());
+    }
+  }, [diceState]);
+
+  const renderDice = () => {
+    switch (diceState) {
+      case "idle":
+        return <IdleDice />;
+      case "rolling":
+        return (
+          <Physics gravity={[0, -25, 0]} key={rollKey}>
+            <Floor />
+            <PhysicsDice targetFace={targetFace} onRollComplete={onRollComplete} />
+          </Physics>
+        );
+      case "settled":
+      case "showing-splash":
+        return <SettledDice targetFace={targetFace} />;
+      default:
+        return <IdleDice />;
+    }
+  };
 
   return (
     <div className="absolute inset-0">
@@ -215,17 +230,7 @@ export function Dice3D({ rolling, targetFace, onRollComplete, isDark = false, ke
         />
 
         <Suspense fallback={<LoadingDice />}>
-          {keepPosition ? (
-            // Show settled dice in final position
-            <SettledDice targetFace={targetFace} />
-          ) : rolling ? (
-            <Physics gravity={[0, -25, 0]} key={key}>
-              <Floor />
-              <PhysicsDice rolling={rolling} targetFace={targetFace} onRollComplete={onRollComplete} />
-            </Physics>
-          ) : (
-            <IdleDice />
-          )}
+          {renderDice()}
           <Environment preset="city" />
         </Suspense>
 
@@ -242,7 +247,7 @@ export function Dice3D({ rolling, targetFace, onRollComplete, isDark = false, ke
           enablePan={false} 
           maxPolarAngle={Math.PI / 2}
           minPolarAngle={Math.PI / 4}
-          autoRotate={!rolling && !keepPosition}
+          autoRotate={diceState === "idle"}
           autoRotateSpeed={0.5}
         />
       </Canvas>

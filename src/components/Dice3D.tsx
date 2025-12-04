@@ -31,9 +31,6 @@ interface PhysicsDiceProps {
 }
 
 function PhysicsDice({ onRollComplete, validFaces }: PhysicsDiceProps) {
-  const positionRef = useRef<[number, number, number]>([0, 0, 0]);
-  const rotationRef = useRef<[number, number, number, number]>([0, 0, 0, 1]);
-  
   const [ref, api] = useBox<THREE.Group>(() => ({
     mass: 1,
     position: [0, 5, 0],
@@ -42,16 +39,19 @@ function PhysicsDice({ onRollComplete, validFaces }: PhysicsDiceProps) {
     material: { friction: 0.6, restitution: 0.3 },
   }));
 
-  const [phase, setPhase] = useState<"falling" | "detecting" | "done">("falling");
   const hasCompletedRef = useRef(false);
+  const lastPosition = useRef<[number, number, number]>([0, 5, 0]);
+  const lastQuaternion = useRef<[number, number, number, number]>([0, 0, 0, 1]);
+  const stableFrames = useRef(0);
+  const lastY = useRef(5);
 
-  // Subscribe to position and rotation updates
+  // Subscribe to position and rotation
   useEffect(() => {
     const unsubPos = api.position.subscribe((pos) => {
-      positionRef.current = [pos[0], pos[1], pos[2]];
+      lastPosition.current = [pos[0], pos[1], pos[2]];
     });
     const unsubRot = api.quaternion.subscribe((quat) => {
-      rotationRef.current = [quat[0], quat[1], quat[2], quat[3]];
+      lastQuaternion.current = [quat[0], quat[1], quat[2], quat[3]];
     });
     return () => {
       unsubPos();
@@ -72,59 +72,62 @@ function PhysicsDice({ onRollComplete, validFaces }: PhysicsDiceProps) {
       (Math.random() - 0.5) * 15,
       (Math.random() - 0.5) * 15
     );
-
-    // Wait for dice to settle naturally
-    const settleTimeout = setTimeout(() => {
-      setPhase("detecting");
-    }, 3000);
-
-    return () => clearTimeout(settleTimeout);
   }, [api]);
 
-  // Detect which face is on top
-  useEffect(() => {
-    if (phase === "detecting") {
-      // Stop the dice
-      api.velocity.set(0, 0, 0);
-      api.angularVelocity.set(0, 0, 0);
+  // Detect when dice has stopped moving
+  useFrame(() => {
+    if (hasCompletedRef.current) return;
 
-      // Get current quaternion
-      const quat = new THREE.Quaternion(
-        rotationRef.current[0],
-        rotationRef.current[1],
-        rotationRef.current[2],
-        rotationRef.current[3]
-      );
+    const currentY = lastPosition.current[1];
+    const yDiff = Math.abs(currentY - lastY.current);
+    
+    // Check if dice has settled (Y position stable and near floor)
+    if (yDiff < 0.01 && currentY < 0) {
+      stableFrames.current++;
+      
+      // Wait for 60 stable frames (~1 second at 60fps)
+      if (stableFrames.current > 60) {
+        hasCompletedRef.current = true;
+        
+        // Stop the dice completely
+        api.velocity.set(0, 0, 0);
+        api.angularVelocity.set(0, 0, 0);
+        
+        // Capture the EXACT quaternion NOW
+        const quat = new THREE.Quaternion(
+          lastQuaternion.current[0],
+          lastQuaternion.current[1],
+          lastQuaternion.current[2],
+          lastQuaternion.current[3]
+        );
 
-      // Find which face is pointing up (highest Y after rotation)
-      let topFace = 3; // Default to face 3 (originally on top)
-      let maxY = -Infinity;
+        // Find which face is pointing up
+        let topFace = 3;
+        let maxY = -Infinity;
 
-      for (const [face, normal] of Object.entries(FACE_NORMALS)) {
-        const rotatedNormal = normal.clone().applyQuaternion(quat);
-        if (rotatedNormal.y > maxY) {
-          maxY = rotatedNormal.y;
-          topFace = parseInt(face);
+        for (const [face, normal] of Object.entries(FACE_NORMALS)) {
+          const rotatedNormal = normal.clone().applyQuaternion(quat);
+          if (rotatedNormal.y > maxY) {
+            maxY = rotatedNormal.y;
+            topFace = parseInt(face);
+          }
         }
-      }
 
-      // Check if this face has inventory, if not find nearest valid face
-      let finalFace = topFace;
-      if (!validFaces.includes(topFace)) {
-        // Pick a random valid face
-        finalFace = validFaces[Math.floor(Math.random() * validFaces.length)] || 1;
-      }
-
-      // Small delay then complete
-      setTimeout(() => {
-        setPhase("done");
-        if (!hasCompletedRef.current) {
-          hasCompletedRef.current = true;
-          onRollComplete(finalFace, positionRef.current);
+        // Check if this face has inventory
+        let finalFace = topFace;
+        if (!validFaces.includes(topFace)) {
+          finalFace = validFaces[Math.floor(Math.random() * validFaces.length)] || 1;
         }
-      }, 300);
+
+        // Immediately call onRollComplete with captured values
+        onRollComplete(finalFace, [...lastPosition.current] as [number, number, number]);
+      }
+    } else {
+      stableFrames.current = 0;
     }
-  }, [phase, api, onRollComplete, validFaces]);
+    
+    lastY.current = currentY;
+  });
 
   return (
     <group ref={ref}>

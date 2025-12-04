@@ -23,6 +23,7 @@ export default function Index() {
   const [gifts, setGifts] = useState<GiftConfig[]>(getGifts());
   const [diceState, setDiceState] = useState<DiceState>("idle");
   const [targetFace, setTargetFace] = useState(1);
+  const [landedPosition, setLandedPosition] = useState<[number, number, number]>([0, -1, 0]);
   const [wonGift, setWonGift] = useState<GiftConfig | null>(null);
   const [canRoll, setCanRoll] = useState(hasAnyInventory());
   const splashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -55,11 +56,14 @@ export default function Index() {
     setDiceState("rolling");
   }, []);
 
-  const handleRollComplete = useCallback(() => {
+  const handleRollComplete = useCallback((position: [number, number, number]) => {
     const gift = getGiftById(targetFace);
     if (gift) {
       const updatedGifts = decrementGiftInventory(targetFace);
       setGifts(updatedGifts);
+      
+      // Store the landed position
+      setLandedPosition(position);
       
       // Move to settled state
       setDiceState("settled");
@@ -79,7 +83,6 @@ export default function Index() {
   };
 
   const isRolling = diceState === "rolling";
-  const isSettled = diceState === "settled" || diceState === "showing-splash";
 
   return (
     <div className="relative h-screen w-screen overflow-hidden">
@@ -89,6 +92,7 @@ export default function Index() {
         targetFace={targetFace}
         onRollComplete={handleRollComplete}
         isDark={theme === "dark"}
+        landedPosition={landedPosition}
       />
 
       {/* Header Overlay */}

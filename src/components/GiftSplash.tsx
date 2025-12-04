@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { gsap } from "gsap";
 import { GiftConfig } from "@/lib/giftStore";
 import { Button } from "@/components/ui/button";
@@ -7,9 +7,25 @@ import { Sparkles, Gift, Star } from "lucide-react";
 interface GiftSplashProps {
   gift: GiftConfig;
   onClose: () => void;
+  dicePosition?: [number, number, number];
 }
 
-export function GiftSplash({ gift, onClose }: GiftSplashProps) {
+// Convert 3D position to screen position (approximate)
+function get3DToScreenPosition(pos3D: [number, number, number]): { x: number; y: number } {
+  // Camera is at [0, 5, 12] with fov 45
+  const cameraZ = 12;
+  const cameraY = 5;
+  const fov = 45;
+  
+  // Project 3D to 2D (simplified projection)
+  const scale = cameraZ / (cameraZ - pos3D[2]);
+  const screenX = (window.innerWidth / 2) + (pos3D[0] * scale * 50);
+  const screenY = (window.innerHeight / 2) - ((pos3D[1] - cameraY + 5) * scale * 50);
+  
+  return { x: screenX, y: screenY };
+}
+
+export function GiftSplash({ gift, onClose, dicePosition }: GiftSplashProps) {
   const [phase, setPhase] = useState<"expanding" | "content" | "ready">("expanding");
   const containerRef = useRef<HTMLDivElement>(null);
   const expandRef = useRef<HTMLDivElement>(null);
@@ -20,39 +36,59 @@ export function GiftSplash({ gift, onClose }: GiftSplashProps) {
   const giftNameRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
+  // Calculate origin point from dice position
+  const originPosition = useMemo(() => {
+    if (dicePosition) {
+      return get3DToScreenPosition(dicePosition);
+    }
+    return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+  }, [dicePosition]);
+
   useEffect(() => {
     const tl = gsap.timeline();
 
-    // Set initial states
+    // Set initial states - position at dice location
     gsap.set(expandRef.current, { 
       scale: 0, 
       opacity: 0,
+      left: originPosition.x,
+      top: originPosition.y,
+      xPercent: -50,
+      yPercent: -50,
     });
-    gsap.set(ringsRef.current, { opacity: 0, scale: 0.3 });
+    gsap.set(ringsRef.current, { 
+      opacity: 0, 
+      scale: 0,
+      left: originPosition.x,
+      top: originPosition.y,
+      xPercent: -50,
+      yPercent: -50,
+    });
 
-    // Slower, more dramatic expanding animation
+    // Dramatic expanding animation from dice position
     tl.to(expandRef.current, { 
       opacity: 1,
-      duration: 0.5,
+      scale: 0.1,
+      duration: 0.3,
       ease: "power2.in",
     })
     .to(expandRef.current, { 
-      scale: 4, 
-      duration: 2.5, 
+      scale: 6, 
+      duration: 2.8, 
       ease: "power2.out",
-    }, "-=0.2")
+    })
     .to(ringsRef.current, {
       opacity: 1,
       scale: 1,
-      duration: 1.5,
+      duration: 2,
       ease: "power2.out"
-    }, "-=1.5")
-    .call(() => setPhase("content"), [], "+=0.3");
+    }, "-=2")
+    .call(() => setPhase("content"), [], "+=0.5");
 
     return () => {
       tl.kill();
     };
-  }, []);
+  }, [originPosition]);
 
   useEffect(() => {
     if (phase !== "content") return;
@@ -144,22 +180,27 @@ export function GiftSplash({ gift, onClose }: GiftSplashProps) {
       ref={containerRef}
       className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden"
     >
-      {/* Expanding background circle */}
+      {/* Expanding background circle - starts from dice */}
       <div
         ref={expandRef}
         className="absolute h-[150vmax] w-[150vmax] rounded-full bg-primary"
-        style={{ transformOrigin: "center center" }}
+        style={{ transformOrigin: "center center", position: "absolute" }}
       />
 
-      {/* Animated rings */}
-      <div ref={ringsRef} className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="absolute h-[300px] w-[300px] rounded-full border-2 border-primary-foreground/10 animate-ping" style={{ animationDuration: "3s" }} />
-        <div className="absolute h-[450px] w-[450px] rounded-full border border-primary-foreground/5 animate-ping" style={{ animationDuration: "4s", animationDelay: "0.5s" }} />
+      {/* Animated rings - centered at dice origin then expand */}
+      <div 
+        ref={ringsRef} 
+        className="absolute pointer-events-none"
+        style={{ position: "absolute" }}
+      >
+        <div className="absolute h-[300px] w-[300px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary-foreground/10 animate-ping" style={{ animationDuration: "3s" }} />
+        <div className="absolute h-[450px] w-[450px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-primary-foreground/5 animate-ping" style={{ animationDuration: "4s", animationDelay: "0.5s" }} />
+        <div className="absolute h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-primary-foreground/5 animate-ping" style={{ animationDuration: "5s", animationDelay: "1s" }} />
       </div>
 
       {/* Floating particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(12)].map((_, i) => (
+        {[...Array(20)].map((_, i) => (
           <div
             key={i}
             className="absolute animate-pulse"

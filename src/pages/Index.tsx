@@ -134,7 +134,7 @@ export default function Index() {
 
       {/* Gift Splash Screen */}
       {wonGift && diceState === "showing-splash" && (
-        <GiftSplash gift={wonGift} onClose={handleSplashClose} />
+        <GiftSplash gift={wonGift} onClose={handleSplashClose} dicePosition={landedPosition} />
       )}
     </div>
   );

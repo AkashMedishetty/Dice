@@ -48,10 +48,14 @@ function PhysicsDice({ onRollComplete, validFaces }: PhysicsDiceProps) {
   // Subscribe to position and rotation
   useEffect(() => {
     const unsubPos = api.position.subscribe((pos) => {
-      lastPosition.current = [pos[0], pos[1], pos[2]];
+      if (!hasCompletedRef.current) {
+        lastPosition.current = [pos[0], pos[1], pos[2]];
+      }
     });
     const unsubRot = api.quaternion.subscribe((quat) => {
-      lastQuaternion.current = [quat[0], quat[1], quat[2], quat[3]];
+      if (!hasCompletedRef.current) {
+        lastQuaternion.current = [quat[0], quat[1], quat[2], quat[3]];
+      }
     });
     return () => {
       unsubPos();

@@ -129,6 +129,7 @@ export default function Index() {
           onClick={handleRoll}
           disabled={!canRoll || diceState !== "idle"}
           rolling={isRolling}
+          showingResult={diceState === "settled" || diceState === "showing-splash"}
         />
 
         {!canRoll && diceState === "idle" && (

@@ -42,10 +42,11 @@ function PhysicsDice({ onRollComplete, validFaces }: PhysicsDiceProps) {
   const hasCompletedRef = useRef(false);
   const lastPosition = useRef<[number, number, number]>([0, 5, 0]);
   const lastQuaternion = useRef<[number, number, number, number]>([0, 0, 0, 1]);
+  const velocity = useRef<[number, number, number]>([0, 0, 0]);
+  const angularVelocity = useRef<[number, number, number]>([0, 0, 0]);
   const stableFrames = useRef(0);
-  const lastY = useRef(5);
 
-  // Subscribe to position and rotation
+  // Subscribe to position, rotation, and velocities
   useEffect(() => {
     const unsubPos = api.position.subscribe((pos) => {
       if (!hasCompletedRef.current) {
@@ -57,9 +58,17 @@ function PhysicsDice({ onRollComplete, validFaces }: PhysicsDiceProps) {
         lastQuaternion.current = [quat[0], quat[1], quat[2], quat[3]];
       }
     });
+    const unsubVel = api.velocity.subscribe((vel) => {
+      velocity.current = [vel[0], vel[1], vel[2]];
+    });
+    const unsubAngVel = api.angularVelocity.subscribe((angVel) => {
+      angularVelocity.current = [angVel[0], angVel[1], angVel[2]];
+    });
     return () => {
       unsubPos();
       unsubRot();
+      unsubVel();
+      unsubAngVel();
     };
   }, [api]);
 
@@ -78,19 +87,28 @@ function PhysicsDice({ onRollComplete, validFaces }: PhysicsDiceProps) {
     );
   }, [api]);
 
-  // Detect when dice has stopped moving
+  // Detect when dice has truly stopped moving
   useFrame(() => {
     if (hasCompletedRef.current) return;
 
     const currentY = lastPosition.current[1];
-    const yDiff = Math.abs(currentY - lastY.current);
+    const vel = velocity.current;
+    const angVel = angularVelocity.current;
     
-    // Check if dice has settled (Y position stable and near floor)
-    if (yDiff < 0.01 && currentY < 0) {
+    // Calculate total velocity magnitude
+    const velMagnitude = Math.sqrt(vel[0] * vel[0] + vel[1] * vel[1] + vel[2] * vel[2]);
+    const angVelMagnitude = Math.sqrt(angVel[0] * angVel[0] + angVel[1] * angVel[1] + angVel[2] * angVel[2]);
+    
+    // Check if dice has settled: near floor, very low velocity, very low angular velocity
+    const isNearFloor = currentY < 0.5 && currentY > -2;
+    const isSlowEnough = velMagnitude < 0.1;
+    const isNotSpinning = angVelMagnitude < 0.2;
+    
+    if (isNearFloor && isSlowEnough && isNotSpinning) {
       stableFrames.current++;
       
-      // Wait for 60 stable frames (~1 second at 60fps)
-      if (stableFrames.current > 60) {
+      // Wait for 45 stable frames (~0.75 seconds at 60fps)
+      if (stableFrames.current > 45) {
         hasCompletedRef.current = true;
         
         // Stop the dice completely
@@ -129,8 +147,6 @@ function PhysicsDice({ onRollComplete, validFaces }: PhysicsDiceProps) {
     } else {
       stableFrames.current = 0;
     }
-    
-    lastY.current = currentY;
   });
 
   return (

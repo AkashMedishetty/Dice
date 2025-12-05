@@ -6,9 +6,10 @@ interface RollButtonProps {
   onClick: () => void;
   disabled: boolean;
   rolling: boolean;
+  showingResult?: boolean;
 }
 
-export function RollButton({ onClick, disabled, rolling }: RollButtonProps) {
+export function RollButton({ onClick, disabled, rolling, showingResult }: RollButtonProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const iconRef = useRef<HTMLDivElement>(null);
 
@@ -62,7 +63,7 @@ export function RollButton({ onClick, disabled, rolling }: RollButtonProps) {
         <div ref={iconRef}>
           <Dice6 className="h-7 w-7" />
         </div>
-        {rolling ? "Rolling..." : disabled ? "No Gifts Available" : "Roll the Dice!"}
+        {rolling ? "Rolling..." : showingResult ? "Winner!" : disabled ? "No Prizes Available" : "Roll the Dice!"}
       </span>
     </button>
   );

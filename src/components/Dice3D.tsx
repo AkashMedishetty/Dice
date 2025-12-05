@@ -163,11 +163,16 @@ interface SettledDiceProps {
 
 function SettledDice({ position, quaternion }: SettledDiceProps) {
   const meshRef = useRef<THREE.Group>(null);
+  const glowRef = useRef<THREE.PointLight>(null);
 
   useFrame((state) => {
     if (meshRef.current) {
       // Very subtle floating while keeping exact rotation
       meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 0.8) * 0.02;
+    }
+    if (glowRef.current) {
+      // Pulsing glow effect
+      glowRef.current.intensity = 2 + Math.sin(state.clock.elapsedTime * 1.5) * 0.5;
     }
   });
 
@@ -182,16 +187,29 @@ function SettledDice({ position, quaternion }: SettledDiceProps) {
       position={[position[0], position[1], position[2]]} 
       rotation={[rotation.x, rotation.y, rotation.z]}
     >
-      <DiceModel />
+      {/* Glow effect */}
+      <pointLight ref={glowRef} color="#0338cd" intensity={2} distance={6} decay={2} />
+      <DiceModel settled />
     </group>
   );
 }
 
-function DiceModel() {
+interface DiceModelProps {
+  settled?: boolean;
+}
+
+function DiceModel({ settled }: DiceModelProps = {}) {
   return (
     <>
       <RoundedBox args={[2, 2, 2]} radius={0.15} smoothness={4}>
-        <meshStandardMaterial color="#0338cd" metalness={0.5} roughness={0.1} envMapIntensity={1.2} />
+        <meshStandardMaterial 
+          color="#0338cd" 
+          metalness={0.5} 
+          roughness={0.1} 
+          envMapIntensity={1.2}
+          emissive={settled ? "#0338cd" : "#000000"}
+          emissiveIntensity={settled ? 0.15 : 0}
+        />
       </RoundedBox>
       {/* Face 1 - Front (z+) */}
       <Text position={[0, 0, 1.02]} fontSize={0.7} color="white" anchorX="center" anchorY="middle">

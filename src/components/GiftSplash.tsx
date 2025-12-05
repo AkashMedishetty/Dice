@@ -56,18 +56,18 @@ export function GiftSplash({ gift, onClose, dicePosition }: GiftSplashProps) {
     });
     gsap.set(contentRef.current, { opacity: 0, scale: 0.9 });
 
-    // Simple, smooth expanding animation
+    // Slow, smooth expanding animation
     tl.to(expandRef.current, { 
       scale: 6, 
-      duration: 1.5, 
+      duration: 2.5, 
       ease: "power2.out",
     })
     .to(contentRef.current, { 
       opacity: 1, 
       scale: 1,
-      duration: 1, 
+      duration: 1.2, 
       ease: "power2.out" 
-    }, "-=0.8");
+    }, "-=0.5");
 
     return () => {
       tl.kill();

@@ -2,7 +2,7 @@ import { useEffect, useRef, useMemo } from "react";
 import { gsap } from "gsap";
 import { GiftConfig } from "@/lib/giftStore";
 import { Button } from "@/components/ui/button";
-import { Gift } from "lucide-react";
+import { Dice6 } from "lucide-react";
 
 interface GiftSplashProps {
   gift: GiftConfig;
@@ -62,37 +62,37 @@ export function GiftSplash({ gift, onClose, dicePosition }: GiftSplashProps) {
       y: 30 
     });
 
-    // Slow expanding circle
+    // Very slow, dramatic expanding circle
     tl.to(expandRef.current, { 
       scale: 6, 
-      duration: 2.5, 
-      ease: "power2.out",
+      duration: 3.5, 
+      ease: "power1.out",
     })
-    // Sequential content reveal
+    // Sequential content reveal with longer delays
     .to(headerRef.current, { 
       opacity: 1, 
       y: 0,
-      duration: 0.6, 
+      duration: 1, 
       ease: "power2.out" 
-    }, "-=0.8")
+    }, "-=1.2")
     .to(iconRef.current, { 
       opacity: 1, 
       y: 0,
-      duration: 0.6, 
-      ease: "back.out(1.4)" 
-    }, "-=0.3")
+      duration: 1.2, 
+      ease: "back.out(1.2)" 
+    }, "-=0.4")
     .to(detailsRef.current, { 
       opacity: 1, 
       y: 0,
-      duration: 0.6, 
+      duration: 0.8, 
       ease: "power2.out" 
     }, "-=0.3")
     .to(buttonRef.current, { 
       opacity: 1, 
       y: 0,
-      duration: 0.6, 
+      duration: 0.8, 
       ease: "power2.out" 
-    }, "-=0.3");
+    }, "-=0.2");
 
     return () => {
       tl.kill();
@@ -135,7 +135,7 @@ export function GiftSplash({ gift, onClose, dicePosition }: GiftSplashProps) {
         {/* Congratulations text */}
         <div ref={headerRef} className="mb-6">
           <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-primary-foreground/10 px-4 py-2 backdrop-blur-sm">
-            <Gift className="h-4 w-4 text-primary-foreground" />
+            <Dice6 className="h-4 w-4 text-primary-foreground" />
             <span className="text-sm font-bold uppercase tracking-[0.25em] text-primary-foreground">
               Winner
             </span>
@@ -168,8 +168,8 @@ export function GiftSplash({ gift, onClose, dicePosition }: GiftSplashProps) {
             className="group relative w-full max-w-sm overflow-hidden rounded-full bg-primary-foreground py-8 text-xl font-black text-primary shadow-2xl transition-all duration-300 hover:scale-105"
           >
             <span className="relative z-10 flex items-center justify-center gap-2">
-              <Gift className="h-6 w-6" />
-              Collect Your Gift
+              <Dice6 className="h-6 w-6" />
+              Claim Your Prize
             </span>
           </Button>
 

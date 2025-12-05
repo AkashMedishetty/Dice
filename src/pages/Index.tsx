@@ -74,18 +74,21 @@ export default function Index() {
       // Move to settled state
       setDiceState("settled");
       
-      // Wait 3 seconds for dramatic effect before showing splash
+      // Short delay to appreciate the landing before splash
       splashTimeoutRef.current = setTimeout(() => {
         setDiceState("showing-splash");
-      }, 3000);
+      }, 800);
     }
   }, [diceState]);
 
   const handleSplashClose = () => {
-    setWonGift(null);
-    setDiceState("idle");
-    setCanRoll(hasAnyInventory());
-    setValidFaces(getActiveGiftIds());
+    // Slow transition back to idle state
+    setTimeout(() => {
+      setWonGift(null);
+      setDiceState("idle");
+      setCanRoll(hasAnyInventory());
+      setValidFaces(getActiveGiftIds());
+    }, 600);
   };
 
   const isRolling = diceState === "rolling";
@@ -106,7 +109,7 @@ export default function Index() {
       {/* Header Overlay */}
       <header className="absolute left-0 right-0 top-0 z-10 flex items-center justify-between p-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground drop-shadow-sm">Gift Dice</h1>
+          <h1 className="text-2xl font-bold text-foreground drop-shadow-sm">Lucky Dice</h1>
           <p className="text-sm text-muted-foreground">Roll to win!</p>
         </div>
         <div className="flex items-center gap-2">
@@ -130,7 +133,7 @@ export default function Index() {
 
         {!canRoll && diceState === "idle" && (
           <p className="rounded-full bg-destructive/90 px-6 py-2 text-center text-sm font-medium text-destructive-foreground backdrop-blur-sm">
-            All gifts have been claimed!
+            All prizes have been claimed!
           </p>
         )}
       </div>

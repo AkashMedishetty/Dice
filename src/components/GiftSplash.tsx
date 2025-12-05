@@ -28,7 +28,10 @@ function get3DToScreenPosition(pos3D: [number, number, number]): { x: number; y:
 export function GiftSplash({ gift, onClose, dicePosition }: GiftSplashProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const expandRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const iconRef = useRef<HTMLDivElement>(null);
+  const detailsRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLDivElement>(null);
   const hasAnimatedRef = useRef(false);
 
   // Calculate origin point from dice position
@@ -54,20 +57,42 @@ export function GiftSplash({ gift, onClose, dicePosition }: GiftSplashProps) {
       xPercent: -50,
       yPercent: -50,
     });
-    gsap.set(contentRef.current, { opacity: 0, scale: 0.9 });
+    gsap.set([headerRef.current, iconRef.current, detailsRef.current, buttonRef.current], { 
+      opacity: 0, 
+      y: 30 
+    });
 
-    // Slow, smooth expanding animation
+    // Slow expanding circle
     tl.to(expandRef.current, { 
       scale: 6, 
       duration: 2.5, 
       ease: "power2.out",
     })
-    .to(contentRef.current, { 
+    // Sequential content reveal
+    .to(headerRef.current, { 
       opacity: 1, 
-      scale: 1,
-      duration: 1.2, 
+      y: 0,
+      duration: 0.6, 
       ease: "power2.out" 
-    }, "-=0.5");
+    }, "-=0.8")
+    .to(iconRef.current, { 
+      opacity: 1, 
+      y: 0,
+      duration: 0.6, 
+      ease: "back.out(1.4)" 
+    }, "-=0.3")
+    .to(detailsRef.current, { 
+      opacity: 1, 
+      y: 0,
+      duration: 0.6, 
+      ease: "power2.out" 
+    }, "-=0.3")
+    .to(buttonRef.current, { 
+      opacity: 1, 
+      y: 0,
+      duration: 0.6, 
+      ease: "power2.out" 
+    }, "-=0.3");
 
     return () => {
       tl.kill();
@@ -79,17 +104,18 @@ export function GiftSplash({ gift, onClose, dicePosition }: GiftSplashProps) {
       onComplete: onClose,
     });
 
-    tl.to(contentRef.current, { 
-      scale: 0.9, 
+    tl.to([buttonRef.current, detailsRef.current, iconRef.current, headerRef.current], { 
       opacity: 0, 
-      duration: 0.4, 
-      ease: "power2.in" 
+      y: -20,
+      duration: 0.3, 
+      ease: "power2.in",
+      stagger: 0.05
     })
     .to(expandRef.current, { 
       scale: 0, 
       duration: 0.5, 
       ease: "power3.in" 
-    }, "-=0.2");
+    }, "-=0.1");
   };
 
   return (
@@ -105,12 +131,9 @@ export function GiftSplash({ gift, onClose, dicePosition }: GiftSplashProps) {
       />
 
       {/* Main content */}
-      <div
-        ref={contentRef}
-        className="relative z-10 mx-6 w-full max-w-lg text-center"
-      >
+      <div className="relative z-10 mx-6 w-full max-w-lg text-center">
         {/* Congratulations text */}
-        <div className="mb-6">
+        <div ref={headerRef} className="mb-6">
           <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-primary-foreground/10 px-4 py-2 backdrop-blur-sm">
             <Gift className="h-4 w-4 text-primary-foreground" />
             <span className="text-sm font-bold uppercase tracking-[0.25em] text-primary-foreground">
@@ -123,12 +146,12 @@ export function GiftSplash({ gift, onClose, dicePosition }: GiftSplashProps) {
         </div>
 
         {/* Gift icon */}
-        <div className="mx-auto mb-8 flex h-44 w-44 items-center justify-center rounded-full bg-primary-foreground/15 text-8xl shadow-2xl ring-4 ring-primary-foreground/20 backdrop-blur-sm">
+        <div ref={iconRef} className="mx-auto mb-8 flex h-44 w-44 items-center justify-center rounded-full bg-primary-foreground/15 text-8xl shadow-2xl ring-4 ring-primary-foreground/20 backdrop-blur-sm">
           {gift.icon}
         </div>
 
         {/* Gift details */}
-        <div className="mb-10">
+        <div ref={detailsRef} className="mb-10">
           <h3 className="mb-2 text-4xl font-black text-primary-foreground md:text-5xl">
             {gift.name}
           </h3>
@@ -138,20 +161,22 @@ export function GiftSplash({ gift, onClose, dicePosition }: GiftSplashProps) {
         </div>
 
         {/* Collect button */}
-        <Button
-          onClick={handleClose}
-          size="lg"
-          className="group relative w-full max-w-sm overflow-hidden rounded-full bg-primary-foreground py-8 text-xl font-black text-primary shadow-2xl transition-all duration-300 hover:scale-105"
-        >
-          <span className="relative z-10 flex items-center justify-center gap-2">
-            <Gift className="h-6 w-6" />
-            Collect Your Gift
-          </span>
-        </Button>
+        <div ref={buttonRef}>
+          <Button
+            onClick={handleClose}
+            size="lg"
+            className="group relative w-full max-w-sm overflow-hidden rounded-full bg-primary-foreground py-8 text-xl font-black text-primary shadow-2xl transition-all duration-300 hover:scale-105"
+          >
+            <span className="relative z-10 flex items-center justify-center gap-2">
+              <Gift className="h-6 w-6" />
+              Collect Your Gift
+            </span>
+          </Button>
 
-        <p className="mt-6 text-sm font-medium text-primary-foreground/50">
-          Present this screen at the registration desk
-        </p>
+          <p className="mt-6 text-sm font-medium text-primary-foreground/50">
+            Present this screen at the registration desk
+          </p>
+        </div>
       </div>
     </div>
   );

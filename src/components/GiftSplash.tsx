@@ -1,8 +1,15 @@
 import { useEffect, useRef, useMemo } from "react";
 import { gsap } from "gsap";
-import { GiftConfig } from "@/lib/giftStore";
 import { Button } from "@/components/ui/button";
 import { Dice6 } from "lucide-react";
+
+interface GiftConfig {
+  id: number;
+  name: string;
+  description: string;
+  icon: string;
+  inventory: number;
+}
 
 interface GiftSplashProps {
   gift: GiftConfig;

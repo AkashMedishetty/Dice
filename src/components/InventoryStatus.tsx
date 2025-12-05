@@ -1,7 +1,7 @@
-import { GiftConfig } from "@/lib/giftStore";
+import { Prize } from "@/lib/api";
 
 interface InventoryStatusProps {
-  gifts: GiftConfig[];
+  gifts: Prize[];
 }
 
 export function InventoryStatus({ gifts }: InventoryStatusProps) {

@@ -47,7 +47,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error) {
-    console.error('API Error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    console.error('Prizes API Error:', error);
+    
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    if (errorMessage.includes('MONGODB_URI')) {
+      return res.status(500).json({ 
+        error: 'Database not configured',
+        code: 'DB_NOT_CONFIGURED'
+      });
+    }
+    
+    return res.status(500).json({ 
+      error: 'Internal server error',
+      code: 'DB_ERROR'
+    });
   }
 }

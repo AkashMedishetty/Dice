@@ -54,16 +54,18 @@ export function RollButton({ onClick, disabled, rolling, showingResult }: RollBu
       ref={buttonRef}
       onClick={onClick}
       disabled={disabled || rolling}
-      className="group relative overflow-hidden rounded-full bg-primary px-12 py-6 text-xl font-bold text-primary-foreground shadow-glow transition-all duration-300 hover:shadow-elevated disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+      className="group relative overflow-hidden rounded-full bg-primary px-8 py-4 sm:px-12 sm:py-6 text-base sm:text-xl font-bold text-primary-foreground shadow-glow transition-all duration-300 hover:shadow-elevated disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none touch-manipulation"
     >
       {/* Shimmer effect */}
       <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-primary-foreground/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
 
-      <span className="relative flex items-center justify-center gap-3">
+      <span className="relative flex items-center justify-center gap-2 sm:gap-3">
         <div ref={iconRef}>
-          <Dice6 className="h-7 w-7" />
+          <Dice6 className="h-5 w-5 sm:h-7 sm:w-7" />
         </div>
-        {rolling ? "Rolling..." : showingResult ? "Winner!" : disabled ? "No Prizes Available" : "Roll the Dice!"}
+        <span className="whitespace-nowrap">
+          {rolling ? "Rolling..." : showingResult ? "Winner!" : disabled ? "No Prizes" : "Roll the Dice!"}
+        </span>
       </span>
     </button>
   );

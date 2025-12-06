@@ -184,9 +184,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (error) {
     console.error('Roll API Error:', error);
+    
+    // Provide more specific error messages
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // Check for common MongoDB errors
+    if (errorMessage.includes('MONGODB_URI')) {
+      return res.status(500).json({
+        success: false,
+        error: 'Database not configured. Please contact the administrator.',
+        code: 'DB_NOT_CONFIGURED',
+      });
+    }
+    
+    if (errorMessage.includes('ECONNREFUSED') || errorMessage.includes('ETIMEDOUT') || errorMessage.includes('serverSelectionTimeoutMS')) {
+      return res.status(500).json({
+        success: false,
+        error: 'Unable to connect to database. Please try again later.',
+        code: 'DB_CONNECTION_ERROR',
+      });
+    }
+    
     return res.status(500).json({
       success: false,
-      error: 'Internal server error',
+      error: 'Internal server error. Please try again.',
       code: 'DB_ERROR',
     });
   }

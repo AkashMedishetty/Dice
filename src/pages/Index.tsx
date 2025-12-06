@@ -246,23 +246,23 @@ export default function Index() {
         validFaces={validFaces}
       />
 
-      <header className="absolute left-0 right-0 top-0 z-10 flex items-center justify-between p-6">
+      <header className="absolute left-0 right-0 top-0 z-10 flex items-center justify-between p-4 sm:p-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground drop-shadow-sm">Lucky Dice</h1>
-          <p className="text-sm text-muted-foreground">Roll to win!</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground drop-shadow-sm">Lucky Dice</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">Roll to win!</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
           <Link to="/admin">
-            <Button variant="ghost" size="icon" className="rounded-full bg-background/50 backdrop-blur-sm">
-              <Settings className="h-5 w-5" />
+            <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-background/50 backdrop-blur-sm">
+              <Settings className="h-4 w-4 sm:h-5 sm:w-5" />
               <span className="sr-only">Admin Settings</span>
             </Button>
           </Link>
         </div>
       </header>
 
-      <div className="absolute bottom-0 left-0 right-0 z-10 flex flex-col items-center gap-4 p-8 pb-12">
+      <div className="absolute bottom-0 left-0 right-0 z-10 flex flex-col items-center gap-3 sm:gap-4 p-4 sm:p-8 pb-6 sm:pb-12">
         <RollButton
           onClick={handleRollClick}
           disabled={!canRoll || diceState !== "idle"}

@@ -140,29 +140,29 @@ export function GiftSplash({ gift, onClose, dicePosition }: GiftSplashProps) {
       {/* Main content */}
       <div className="relative z-10 mx-6 w-full max-w-lg text-center">
         {/* Congratulations text */}
-        <div ref={headerRef} className="mb-6">
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-primary-foreground/10 px-4 py-2 backdrop-blur-sm">
-            <Dice6 className="h-4 w-4 text-primary-foreground" />
-            <span className="text-sm font-bold uppercase tracking-[0.25em] text-primary-foreground">
+        <div ref={headerRef} className="mb-4 sm:mb-6">
+          <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-primary-foreground/10 px-3 py-1.5 sm:px-4 sm:py-2 backdrop-blur-sm">
+            <Dice6 className="h-3 w-3 sm:h-4 sm:w-4 text-primary-foreground" />
+            <span className="text-xs sm:text-sm font-bold uppercase tracking-[0.2em] sm:tracking-[0.25em] text-primary-foreground">
               Winner
             </span>
           </div>
-          <h2 className="text-4xl font-black text-primary-foreground md:text-5xl">
+          <h2 className="text-2xl sm:text-4xl md:text-5xl font-black text-primary-foreground">
             Congratulations!
           </h2>
         </div>
 
         {/* Gift icon */}
-        <div ref={iconRef} className="mx-auto mb-8 flex h-44 w-44 items-center justify-center rounded-full bg-primary-foreground/15 text-8xl shadow-2xl ring-4 ring-primary-foreground/20 backdrop-blur-sm">
+        <div ref={iconRef} className="mx-auto mb-4 sm:mb-8 flex h-28 w-28 sm:h-36 sm:w-36 md:h-44 md:w-44 items-center justify-center rounded-full bg-primary-foreground/15 text-5xl sm:text-7xl md:text-8xl shadow-2xl ring-2 sm:ring-4 ring-primary-foreground/20 backdrop-blur-sm">
           {gift.icon}
         </div>
 
         {/* Gift details */}
-        <div ref={detailsRef} className="mb-10">
-          <h3 className="mb-2 text-4xl font-black text-primary-foreground md:text-5xl">
+        <div ref={detailsRef} className="mb-6 sm:mb-10">
+          <h3 className="mb-1 sm:mb-2 text-2xl sm:text-4xl md:text-5xl font-black text-primary-foreground">
             {gift.name}
           </h3>
-          <p className="text-xl text-primary-foreground/70">
+          <p className="text-sm sm:text-xl text-primary-foreground/70 px-4">
             {gift.description}
           </p>
         </div>
@@ -172,15 +172,15 @@ export function GiftSplash({ gift, onClose, dicePosition }: GiftSplashProps) {
           <Button
             onClick={handleClose}
             size="lg"
-            className="group relative w-full max-w-sm overflow-hidden rounded-full bg-primary-foreground py-8 text-xl font-black text-primary shadow-2xl transition-all duration-300 hover:scale-105"
+            className="group relative w-full max-w-xs sm:max-w-sm overflow-hidden rounded-full bg-primary-foreground py-5 sm:py-8 text-base sm:text-xl font-black text-primary shadow-2xl transition-all duration-300 hover:scale-105 active:scale-95 touch-manipulation"
           >
             <span className="relative z-10 flex items-center justify-center gap-2">
-              <Dice6 className="h-6 w-6" />
+              <Dice6 className="h-5 w-5 sm:h-6 sm:w-6" />
               Claim Your Prize
             </span>
           </Button>
 
-          <p className="mt-6 text-sm font-medium text-primary-foreground/50">
+          <p className="mt-4 sm:mt-6 text-xs sm:text-sm font-medium text-primary-foreground/50 px-4">
             Present this screen at the registration desk
           </p>
         </div>

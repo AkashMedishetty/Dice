@@ -121,6 +121,28 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Prevent text selection on buttons for touch devices */
+  button, [role="button"] {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Better touch targets */
+  @media (pointer: coarse) {
+    button, [role="button"], a {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
+
+  /* Prevent zoom on input focus on iOS */
+  @media screen and (max-width: 768px) {
+    input, select, textarea {
+      font-size: 16px !important;
+    }
   }
 }
 

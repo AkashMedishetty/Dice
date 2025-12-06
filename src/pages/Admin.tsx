@@ -189,31 +189,32 @@ export default function Admin() {
     <div className="relative min-h-screen bg-background">
       <ParticleBackground />
 
-      <header className="relative z-10 flex items-center justify-between border-b border-border/50 bg-card/50 p-6 backdrop-blur-sm">
-        <div className="flex items-center gap-4">
+      <header className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/50 bg-card/50 p-4 sm:p-6 backdrop-blur-sm">
+        <div className="flex items-center gap-3 sm:gap-4">
           <Link to="/">
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <ArrowLeft className="h-5 w-5" />
+            <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-10 sm:w-10 rounded-full">
+              <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
-            <p className="text-sm text-muted-foreground">Manage prizes and participants</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground">Admin Dashboard</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground">Manage prizes and participants</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 self-end sm:self-auto">
           <Link to="/">
-            <Button variant="outline" className="gap-2">
-              <Dice6 className="h-4 w-4" />
-              Roll Dice
+            <Button variant="outline" size="sm" className="gap-2 text-xs sm:text-sm">
+              <Dice6 className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden xs:inline">Roll Dice</span>
+              <span className="xs:hidden">Roll</span>
             </Button>
           </Link>
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
         </div>
       </header>
 
-      <main className="relative z-10 p-6">
-        <div className="mx-auto max-w-6xl space-y-6">
+      <main className="relative z-10 p-4 sm:p-6">
+        <div className="mx-auto max-w-6xl space-y-4 sm:space-y-6">
           <StatsCards stats={stats} isLoading={statsLoading} />
           
           <Tabs defaultValue="participants" className="space-y-4">
@@ -223,8 +224,8 @@ export default function Admin() {
             </TabsList>
 
             <TabsContent value="participants" className="space-y-4">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="relative flex-1 max-w-sm">
+              <div className="flex flex-col gap-3 sm:gap-4">
+                <div className="relative w-full sm:max-w-sm">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     placeholder="Search by email..."
@@ -233,9 +234,9 @@ export default function Admin() {
                     className="pl-10"
                   />
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v as typeof statusFilter); setPage(1); }}>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-full sm:w-[180px]">
                       <SelectValue placeholder="Filter by status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -248,14 +249,16 @@ export default function Admin() {
                     variant="outline" 
                     onClick={handleExportCSV}
                     disabled={exporting}
-                    className="gap-2"
+                    className="gap-2 flex-1 sm:flex-none"
+                    size="sm"
                   >
                     {exporting ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <Download className="h-4 w-4" />
                     )}
-                    Export CSV
+                    <span className="hidden sm:inline">Export CSV</span>
+                    <span className="sm:hidden">Export</span>
                   </Button>
                 </div>
               </div>

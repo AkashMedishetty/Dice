@@ -6,7 +6,8 @@ export function useTheme() {
   const [theme, setTheme] = useState<Theme>(() => {
     const stored = localStorage.getItem("dice-roller-theme") as Theme;
     if (stored) return stored;
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    // Default to light theme
+    return "light";
   });
 
   useEffect(() => {

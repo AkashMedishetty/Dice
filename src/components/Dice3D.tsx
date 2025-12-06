@@ -1,215 +1,145 @@
-import { useRef, useState, useEffect, Suspense } from "react";
+import { useRef, useState, useEffect, Suspense, useMemo } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { RoundedBox, Text, Environment, ContactShadows, OrbitControls } from "@react-three/drei";
-import { Physics, useBox, usePlane } from "@react-three/cannon";
 import * as THREE from "three";
-import { getTargetQuaternion, getAdaptiveCorrectiveTorque, getTopFace } from "@/lib/dicePhysics";
+import { getTargetQuaternion } from "@/lib/dicePhysics";
 import { animateCameraToFace } from "@/lib/cameraAnimation";
 
 type DiceState = "idle" | "rolling" | "settled" | "camera-focus" | "showing-splash";
 
-function Floor() {
-  const [ref] = usePlane<THREE.Mesh>(() => ({
-    rotation: [-Math.PI / 2, 0, 0],
-    position: [0, -2, 0],
-    type: "Static",
-  }));
-  return <mesh ref={ref} visible={false} />;
-}
-
-interface PhysicsDiceProps {
+interface AnimatedDiceProps {
   onRollComplete: (faceValue: number, position: [number, number, number], quaternion: [number, number, number, number]) => void;
   targetFace: number;
 }
 
-function PhysicsDice({ onRollComplete, targetFace }: PhysicsDiceProps) {
-  // Log the target face on mount
-  console.log("PhysicsDice mounted with targetFace:", targetFace);
-  
-  const [ref, api] = useBox<THREE.Group>(() => ({
-    mass: 1,
-    position: [0, 5, 0],
-    rotation: [Math.random() * Math.PI * 2, Math.random() * Math.PI * 2, Math.random() * Math.PI * 2],
-    args: [2, 2, 2],
-    material: { friction: 0.6, restitution: 0.3 },
-  }));
-
-  const hasCompletedRef = useRef(false);
-  const lastPosition = useRef<[number, number, number]>([0, 5, 0]);
-  const lastQuaternion = useRef<[number, number, number, number]>([0, 0, 0, 1]);
-  const velocity = useRef<[number, number, number]>([0, 0, 0]);
-  const angularVelocity = useRef<[number, number, number]>([0, 0, 0]);
-  const stableFrames = useRef(0);
-  const frameCount = useRef(0);
-  // Initialize target quaternion with the target face
-  const targetQuaternion = useRef(getTargetQuaternion(targetFace));
-  
-  // Update target quaternion if targetFace changes (shouldn't happen during a roll, but just in case)
-  useEffect(() => {
-    targetQuaternion.current = getTargetQuaternion(targetFace);
-    console.log("Target quaternion updated for face:", targetFace);
-  }, [targetFace]);
-  
-  // Keep callback ref updated to avoid stale closure issues
+/**
+ * Animated dice that guarantees landing on the target face.
+ * Uses keyframe animation with easing for natural-looking movement.
+ */
+function AnimatedDice({ onRollComplete, targetFace }: AnimatedDiceProps) {
+  const meshRef = useRef<THREE.Group>(null);
+  const startTime = useRef(Date.now());
+  const hasCompleted = useRef(false);
   const onRollCompleteRef = useRef(onRollComplete);
+  
+  // Animation parameters
+  const duration = 2.5; // Total animation duration in seconds
+  const bounceCount = 3; // Number of bounces
+  const startY = 4;
+  const endY = -1;
+  
+  // Random but consistent values for this roll
+  const rollParams = useMemo(() => ({
+    // Random horizontal movement
+    startX: (Math.random() - 0.5) * 2,
+    endX: (Math.random() - 0.5) * 3,
+    startZ: (Math.random() - 0.5) * 2,
+    endZ: (Math.random() - 0.5) * 3,
+    // Random spin amounts (full rotations)
+    spinX: (2 + Math.random() * 2) * Math.PI * 2 * (Math.random() > 0.5 ? 1 : -1),
+    spinY: (1 + Math.random() * 2) * Math.PI * 2 * (Math.random() > 0.5 ? 1 : -1),
+    spinZ: (2 + Math.random() * 2) * Math.PI * 2 * (Math.random() > 0.5 ? 1 : -1),
+  }), []);
+  
+  // Get the target rotation for the face
+  const targetQuat = useMemo(() => getTargetQuaternion(targetFace), [targetFace]);
+  const targetEuler = useMemo(() => {
+    const euler = new THREE.Euler();
+    euler.setFromQuaternion(targetQuat);
+    return euler;
+  }, [targetQuat]);
+  
+  // Keep callback ref updated
   useEffect(() => {
     onRollCompleteRef.current = onRollComplete;
   }, [onRollComplete]);
-
-  // Helper to safely complete the roll
-  const completeRoll = () => {
-    if (hasCompletedRef.current) return;
-    hasCompletedRef.current = true;
-    
-    api.velocity.set(0, 0, 0);
-    api.angularVelocity.set(0, 0, 0);
-    
-    const quat = new THREE.Quaternion(
-      lastQuaternion.current[0],
-      lastQuaternion.current[1],
-      lastQuaternion.current[2],
-      lastQuaternion.current[3]
-    );
-    const topFace = getTopFace(quat);
-    
-    console.log("Dice landed! Target face:", targetFace, "Actual top face:", topFace);
-    
-    // Ensure position Y is reasonable (clamp to floor level)
-    const finalPosition: [number, number, number] = [
-      lastPosition.current[0],
-      Math.max(-1.5, Math.min(lastPosition.current[1], 0.5)),
-      lastPosition.current[2]
-    ];
-    
-    // Use setTimeout to ensure the callback runs outside the physics frame
-    setTimeout(() => {
-      onRollCompleteRef.current(topFace, finalPosition, [...lastQuaternion.current] as [number, number, number, number]);
-    }, 0);
-  };
-
-  useEffect(() => {
-    const unsubPos = api.position.subscribe((pos) => {
-      if (!hasCompletedRef.current) {
-        lastPosition.current = [pos[0], pos[1], pos[2]];
-      }
-    });
-    const unsubRot = api.quaternion.subscribe((quat) => {
-      if (!hasCompletedRef.current) {
-        lastQuaternion.current = [quat[0], quat[1], quat[2], quat[3]];
-      }
-    });
-    const unsubVel = api.velocity.subscribe((vel) => {
-      velocity.current = [vel[0], vel[1], vel[2]];
-    });
-    const unsubAngVel = api.angularVelocity.subscribe((angVel) => {
-      angularVelocity.current = [angVel[0], angVel[1], angVel[2]];
-    });
-    return () => {
-      unsubPos();
-      unsubRot();
-      unsubVel();
-      unsubAngVel();
-    };
-  }, [api]);
-
-  useEffect(() => {
-    api.position.set(0, 5, 0);
-    // Reduced horizontal velocity for more controlled roll
-    api.velocity.set(
-      (Math.random() - 0.5) * 4,
-      -2,
-      (Math.random() - 0.5) * 4
-    );
-    // Reduced angular velocity to make correction easier (was 15, now 8)
-    api.angularVelocity.set(
-      (Math.random() - 0.5) * 8,
-      (Math.random() - 0.5) * 8,
-      (Math.random() - 0.5) * 8
-    );
-    
-    // Fallback timeout - if dice doesn't settle in 6 seconds, force completion
-    const fallbackTimeout = setTimeout(() => {
-      completeRoll();
-    }, 6000);
-    
-    return () => clearTimeout(fallbackTimeout);
-  }, [api]);
-
+  
+  console.log("AnimatedDice mounted with targetFace:", targetFace);
+  
   useFrame(() => {
-    if (hasCompletedRef.current) return;
-    frameCount.current++;
-
-    const currentY = lastPosition.current[1];
-    const vel = velocity.current;
-    const angVel = angularVelocity.current;
+    if (!meshRef.current || hasCompleted.current) return;
     
-    const velMagnitude = Math.sqrt(vel[0] * vel[0] + vel[1] * vel[1] + vel[2] * vel[2]);
-    const angVelMagnitude = Math.sqrt(angVel[0] * angVel[0] + angVel[1] * angVel[1] + angVel[2] * angVel[2]);
+    const elapsed = (Date.now() - startTime.current) / 1000;
+    const progress = Math.min(elapsed / duration, 1);
     
-    // Safety: if dice fell through floor or went out of bounds, force complete
-    if (currentY < -3 || Math.abs(lastPosition.current[0]) > 15 || Math.abs(lastPosition.current[2]) > 15) {
-      completeRoll();
-      return;
-    }
+    // Easing function for smooth deceleration
+    const easeOutQuart = (t: number) => 1 - Math.pow(1 - t, 4);
+    const easeOutBounce = (t: number) => {
+      const n1 = 7.5625;
+      const d1 = 2.75;
+      if (t < 1 / d1) return n1 * t * t;
+      if (t < 2 / d1) return n1 * (t -= 1.5 / d1) * t + 0.75;
+      if (t < 2.5 / d1) return n1 * (t -= 2.25 / d1) * t + 0.9375;
+      return n1 * (t -= 2.625 / d1) * t + 0.984375;
+    };
     
-    // Apply corrective torque starting very early to guide the dice toward target face
-    // Start applying after just 5 frames to begin guiding immediately
-    if (frameCount.current > 5) {
-      const currentQuat = new THREE.Quaternion(
-        lastQuaternion.current[0],
-        lastQuaternion.current[1],
-        lastQuaternion.current[2],
-        lastQuaternion.current[3]
-      );
-      
-      // Use adaptive correction that increases strength as dice slows down
-      const torque = getAdaptiveCorrectiveTorque(
-        currentQuat,
-        targetQuaternion.current,
-        velMagnitude,
-        angVelMagnitude
-      );
-      
-      // Apply torque - always apply to ensure dice lands on target
-      api.applyTorque(torque);
-      
-      // When dice is near the floor and slowing down, apply extra damping to angular velocity
-      // This helps the dice settle on the correct face
-      if (currentY < 1.5 && angVelMagnitude > 0.5 && angVelMagnitude < 3) {
-        // Apply counter-torque to slow down rotation
-        const dampingFactor = 0.3;
-        api.applyTorque([
-          -angVel[0] * dampingFactor,
-          -angVel[1] * dampingFactor,
-          -angVel[2] * dampingFactor
-        ]);
-      }
-    }
+    const easedProgress = easeOutQuart(progress);
     
-    const isNearFloor = currentY < 1.0 && currentY > -2.5;
-    const isSlowEnough = velMagnitude < 0.2;
-    const isNotSpinning = angVelMagnitude < 0.35;
+    // Position animation with bounce
+    const bounceProgress = easeOutBounce(progress);
+    const x = rollParams.startX + (rollParams.endX - rollParams.startX) * easedProgress;
+    const z = rollParams.startZ + (rollParams.endZ - rollParams.startZ) * easedProgress;
     
-    if (isNearFloor && isSlowEnough && isNotSpinning) {
-      stableFrames.current++;
-      
-      // Complete after 25 stable frames (~0.4 seconds at 60fps)
-      if (stableFrames.current > 25) {
-        completeRoll();
-      }
+    // Y position with bouncing effect
+    let y: number;
+    if (progress < 0.4) {
+      // Initial drop
+      const dropProgress = progress / 0.4;
+      y = startY - (startY - endY) * easeOutQuart(dropProgress);
+    } else if (progress < 0.6) {
+      // First bounce up
+      const bounceProgress = (progress - 0.4) / 0.2;
+      const bounceHeight = 1.5;
+      y = endY + bounceHeight * Math.sin(bounceProgress * Math.PI);
+    } else if (progress < 0.75) {
+      // Second bounce
+      const bounceProgress = (progress - 0.6) / 0.15;
+      const bounceHeight = 0.6;
+      y = endY + bounceHeight * Math.sin(bounceProgress * Math.PI);
+    } else if (progress < 0.9) {
+      // Third small bounce
+      const bounceProgress = (progress - 0.75) / 0.15;
+      const bounceHeight = 0.2;
+      y = endY + bounceHeight * Math.sin(bounceProgress * Math.PI);
     } else {
-      // Gradual decay instead of full reset for more tolerance
-      stableFrames.current = Math.max(0, stableFrames.current - 1);
+      // Settled
+      y = endY;
     }
     
-    // Force complete after 5 seconds (300 frames) if dice is at least near the floor
-    if (frameCount.current > 300 && currentY < 2 && velMagnitude < 1.0) {
-      completeRoll();
+    meshRef.current.position.set(x, y, z);
+    
+    // Rotation animation - spin then settle to target
+    const spinEase = easeOutQuart(progress);
+    
+    // Calculate rotation: spin amount that decelerates, ending at target rotation
+    const rotX = rollParams.spinX * (1 - spinEase) + targetEuler.x;
+    const rotY = rollParams.spinY * (1 - spinEase) + targetEuler.y;
+    const rotZ = rollParams.spinZ * (1 - spinEase) + targetEuler.z;
+    
+    meshRef.current.rotation.set(rotX, rotY, rotZ);
+    
+    // Complete when animation is done
+    if (progress >= 1 && !hasCompleted.current) {
+      hasCompleted.current = true;
+      
+      const finalPosition: [number, number, number] = [x, endY, z];
+      const finalQuat = new THREE.Quaternion();
+      finalQuat.setFromEuler(new THREE.Euler(targetEuler.x, targetEuler.y, targetEuler.z));
+      
+      console.log("Dice landed! Target face:", targetFace, "Actual top face:", targetFace);
+      
+      setTimeout(() => {
+        onRollCompleteRef.current(
+          targetFace, 
+          finalPosition, 
+          [finalQuat.x, finalQuat.y, finalQuat.z, finalQuat.w]
+        );
+      }, 0);
     }
   });
-
+  
   return (
-    <group ref={ref}>
+    <group ref={meshRef} position={[rollParams.startX, startY, rollParams.startZ]}>
       <DiceModel />
     </group>
   );
@@ -423,16 +353,17 @@ export function Dice3D({
       case "idle":
         return <IdleDice />;
       case "rolling":
-        // Only render Physics when we have a locked target face
+        // Only render AnimatedDice when we have a locked target face
         if (lockedTargetFace === null) {
           // Show loading/idle dice while waiting for target face
           return <IdleDice />;
         }
         return (
-          <Physics gravity={[0, -25, 0]} key={rollKey}>
-            <Floor />
-            <PhysicsDice onRollComplete={onRollComplete} targetFace={lockedTargetFace} />
-          </Physics>
+          <AnimatedDice 
+            key={rollKey}
+            onRollComplete={onRollComplete} 
+            targetFace={lockedTargetFace} 
+          />
         );
       case "settled":
       case "camera-focus":

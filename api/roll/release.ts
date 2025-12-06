@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { ObjectId } from 'mongodb';
-import { getDb } from '../_lib/mongodb';
-import { Entry, Prize } from '../_lib/types';
+import { getDb } from '../_lib/mongodb.js';
+import { Entry, Prize } from '../_lib/types.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS

@@ -39,20 +39,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const entriesCollection = db.collection<Entry>('entries');
 
     // Update entry status from 'reserved' to 'confirmed'
-    const result = await entriesCollection.findOneAndUpdate(
+    // Use updateOne for speed (we don't need the returned document)
+    const result = await entriesCollection.updateOne(
       { _id: new ObjectId(entryId), status: 'reserved' },
-      { 
-        $set: { 
-          status: 'confirmed',
-          updatedAt: new Date() 
-        } 
-      },
-      { returnDocument: 'after' }
+      { $set: { status: 'confirmed', updatedAt: new Date() } }
     );
 
-    if (!result) {
-      // Entry not found or already confirmed/released
-      const existingEntry = await entriesCollection.findOne({ _id: new ObjectId(entryId) });
+    if (result.matchedCount === 0) {
+      // Entry not found or already confirmed - check if already confirmed
+      const existingEntry = await entriesCollection.findOne(
+        { _id: new ObjectId(entryId) },
+        { projection: { status: 1 } } // Only fetch status field
+      );
       
       if (!existingEntry) {
         return res.status(404).json({
@@ -63,11 +61,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       if (existingEntry.status === 'confirmed') {
-        // Already confirmed - return success
-        return res.status(200).json({
-          success: true,
-          message: 'Entry already confirmed',
-        });
+        // Already confirmed - return success immediately
+        return res.status(200).json({ success: true });
       }
 
       return res.status(400).json({
@@ -77,17 +72,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    return res.status(200).json({
-      success: true,
-      entry: {
-        _id: result._id!.toString(),
-        email: result.email,
-        prizeId: result.prizeId,
-        prizeName: result.prizeName,
-        prizeIcon: result.prizeIcon,
-        status: result.status,
-      },
-    });
+    return res.status(200).json({ success: true });
   } catch (error) {
     console.error('Confirm API Error:', error);
     return res.status(500).json({

@@ -34,32 +34,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const prizesCollection = db.collection<Prize>('prizes');
     const entriesCollection = db.collection<Entry>('entries');
 
-    // Clean up stale reserved entries (older than 5 minutes)
-    // This prevents inventory from being locked by abandoned rolls
-    const staleThreshold = new Date(Date.now() - 5 * 60 * 1000);
-    const staleEntries = await entriesCollection.find({
-      status: 'reserved',
-      createdAt: { $lt: staleThreshold }
-    }).toArray();
-    
-    // Release stale entries and restore inventory
-    for (const staleEntry of staleEntries) {
-      await entriesCollection.updateOne(
-        { _id: staleEntry._id },
-        { $set: { status: 'released', updatedAt: new Date() } }
-      );
-      await prizesCollection.updateOne(
-        { id: staleEntry.prizeId },
-        { $inc: { inventory: 1 }, $set: { updatedAt: new Date() } }
-      );
+    // Run email check and prize fetch in parallel for speed
+    const [existingEntry, availablePrizes] = await Promise.all([
+      // Check if email has already been used
+      entriesCollection.findOne({ 
+        email: normalizedEmail, 
+        status: { $in: ['confirmed', 'reserved'] }
+      }),
+      // Get available prizes
+      prizesCollection.find({ inventory: { $gt: 0 } }).toArray(),
+    ]);
+
+    // Clean up stale entries in background (non-blocking) - only occasionally
+    // Use random chance to avoid running on every request
+    if (Math.random() < 0.1) { // 10% chance
+      const staleThreshold = new Date(Date.now() - 5 * 60 * 1000);
+      entriesCollection.find({
+        status: 'reserved',
+        createdAt: { $lt: staleThreshold }
+      }).toArray().then(async (staleEntries) => {
+        for (const staleEntry of staleEntries) {
+          await entriesCollection.updateOne(
+            { _id: staleEntry._id },
+            { $set: { status: 'released', updatedAt: new Date() } }
+          );
+          await prizesCollection.updateOne(
+            { id: staleEntry.prizeId },
+            { $inc: { inventory: 1 }, $set: { updatedAt: new Date() } }
+          );
+        }
+      }).catch(console.error); // Don't block on errors
     }
 
-    // Check if email has already been used (confirmed or recent reserved entries)
-    // This prevents race conditions where same email is used on multiple devices
-    const existingEntry = await entriesCollection.findOne({ 
-      email: normalizedEmail, 
-      status: { $in: ['confirmed', 'reserved'] }
-    });
     if (existingEntry) {
       return res.status(400).json({
         success: false,
@@ -67,11 +73,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         code: 'EMAIL_ALREADY_USED',
       });
     }
-
-    // Get available prizes (inventory > 0)
-    const availablePrizes = await prizesCollection
-      .find({ inventory: { $gt: 0 } })
-      .toArray();
 
     if (availablePrizes.length === 0) {
       return res.status(400).json({

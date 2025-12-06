@@ -6,6 +6,7 @@
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/((?!api/).*)", "destination": "/" }
   ],
+  "regions": ["bom1"],
   "functions": {
     "api/**/*.ts": {
       "memory": 1024,

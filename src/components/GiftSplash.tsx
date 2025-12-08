@@ -69,37 +69,37 @@ export function GiftSplash({ gift, onClose, dicePosition }: GiftSplashProps) {
       y: 30 
     });
 
-    // Very slow, dramatic expanding circle
+    // Expanding circle
     tl.to(expandRef.current, { 
       scale: 6, 
-      duration: 3.5, 
-      ease: "power1.out",
+      duration: 1.2, 
+      ease: "power2.out",
     })
-    // Sequential content reveal with longer delays
+    // Content reveal
     .to(headerRef.current, { 
       opacity: 1, 
       y: 0,
-      duration: 1, 
+      duration: 0.45, 
       ease: "power2.out" 
-    }, "-=1.2")
+    }, "-=0.4")
     .to(iconRef.current, { 
       opacity: 1, 
       y: 0,
-      duration: 1.2, 
+      duration: 0.6, 
       ease: "back.out(1.2)" 
-    }, "-=0.4")
+    }, "-=0.15")
     .to(detailsRef.current, { 
       opacity: 1, 
       y: 0,
-      duration: 0.8, 
+      duration: 0.45, 
       ease: "power2.out" 
-    }, "-=0.3")
+    }, "-=0.15")
     .to(buttonRef.current, { 
       opacity: 1, 
       y: 0,
-      duration: 0.8, 
+      duration: 0.45, 
       ease: "power2.out" 
-    }, "-=0.2");
+    }, "-=0.15");
 
     return () => {
       tl.kill();

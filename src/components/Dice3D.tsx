@@ -210,7 +210,7 @@ function CameraResetController({ shouldReset }: CameraResetControllerProps) {
       hasReset.current = true;
       // Reset camera to default position
       import('@/lib/cameraAnimation').then(({ resetCameraPosition }) => {
-        resetCameraPosition(camera, [0, 5, 12], 0.8);
+        resetCameraPosition(camera, [0, 3, 8], 0.8);
       });
     }
     if (!shouldReset) {
@@ -284,16 +284,17 @@ function DiceModel({ settled }: DiceModelProps = {}) {
 
 function IdleDice() {
   const meshRef = useRef<THREE.Group>(null);
+  const baseY = 0.6; // Slight upward position
 
   useFrame((state) => {
     if (meshRef.current) {
       meshRef.current.rotation.y = state.clock.elapsedTime * 0.2;
-      meshRef.current.position.y = Math.sin(state.clock.elapsedTime * 0.6) * 0.2;
+      meshRef.current.position.y = baseY + Math.sin(state.clock.elapsedTime * 0.6) * 0.2;
     }
   });
 
   return (
-    <group ref={meshRef}>
+    <group ref={meshRef} position={[0, baseY, 0]}>
       <DiceModel />
     </group>
   );
@@ -377,11 +378,11 @@ export function Dice3D({
   return (
     <div className="absolute inset-0">
       <Canvas 
-        camera={{ position: [0, 5, 12], fov: 45 }} 
+        camera={{ position: [0, 3, 8], fov: 50 }} 
         shadows
         gl={{ antialias: true, alpha: true }}
         dpr={[1, 2]}
-        style={{ background: `linear-gradient(180deg, ${bgColor} 0%, ${isDark ? '#0f1729' : '#e8efff'} 100%)` }}
+        style={{ background: 'transparent' }}
       >
         <ambientLight intensity={isDark ? 0.3 : 0.5} />
         <directionalLight position={[5, 15, 5]} intensity={isDark ? 1.8 : 1.5} castShadow shadow-mapSize={2048} />

@@ -1,10 +1,5 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Loader2, Mail, Dice6 } from "lucide-react";
-import { validateEmail } from "@/lib/validation";
+import { Loader2, Dice6 } from "lucide-react";
 
 interface EmailModalProps {
   isOpen: boolean;
@@ -15,100 +10,82 @@ interface EmailModalProps {
 }
 
 export function EmailModal({ isOpen, onSubmit, onCancel, isLoading, error }: EmailModalProps) {
-  const [email, setEmail] = useState("");
+  const [emailPrefix, setEmailPrefix] = useState("");
   const [validationError, setValidationError] = useState("");
+
+  const fullEmail = emailPrefix ? `${emailPrefix}@salesforce.com` : "";
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateEmail(email)) {
-      setValidationError("Please enter a valid email address");
+    if (!emailPrefix.trim()) {
+      setValidationError("Please enter your email username");
+      return;
+    }
+
+    // Basic validation for the prefix (alphanumeric, dots, underscores, hyphens)
+    const prefixRegex = /^[a-zA-Z0-9._-]+$/;
+    if (!prefixRegex.test(emailPrefix)) {
+      setValidationError("Please enter a valid email username");
       return;
     }
     
     setValidationError("");
-    onSubmit(email);
+    onSubmit(fullEmail);
   };
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEmail(e.target.value);
+    setEmailPrefix(e.target.value);
     if (validationError) {
       setValidationError("");
     }
   };
 
-  const handleClose = () => {
-    if (!isLoading) {
-      setEmail("");
-      setValidationError("");
-      onCancel();
-    }
-  };
+  if (!isOpen) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Dice6 className="h-5 w-5 text-primary" />
-            Ready to Roll?
-          </DialogTitle>
-          <DialogDescription>
-            Enter your email to participate and win exciting prizes!
-          </DialogDescription>
-        </DialogHeader>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email Address</Label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="email"
-                type="email"
-                placeholder="your@email.com"
-                value={email}
-                onChange={handleEmailChange}
-                className="pl-10"
-                disabled={isLoading}
-                autoFocus
-              />
-            </div>
-            {(validationError || error) && (
-              <p className="text-sm text-destructive">{validationError || error}</p>
-            )}
-          </div>
-          
-          <div className="flex gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleClose}
+    <div className="flex flex-col items-center gap-6 w-full max-w-md mx-auto px-4">
+      <form onSubmit={handleSubmit} className="w-full space-y-4">
+        {/* Email input with @salesforce.com suffix */}
+        <div className="relative">
+          <div className="flex items-center bg-white rounded-full overflow-hidden shadow-lg">
+            <input
+              type="text"
+              placeholder=""
+              value={emailPrefix}
+              onChange={handleEmailChange}
+              className="flex-1 px-6 py-4 text-gray-700 text-lg outline-none bg-transparent min-w-0"
               disabled={isLoading}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={isLoading || !email}
-              className="flex-1"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Rolling...
-                </>
-              ) : (
-                <>
-                  <Dice6 className="mr-2 h-4 w-4" />
-                  Roll the Dice!
-                </>
-              )}
-            </Button>
+              autoFocus
+            />
+            <span className="pr-6 text-gray-500 text-lg font-medium whitespace-nowrap">
+              @salesforce.com
+            </span>
           </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+          {(validationError || error) && (
+            <p className="text-sm text-red-300 mt-2 text-center">{validationError || error}</p>
+          )}
+        </div>
+        
+        {/* Roll button */}
+        <button
+          type="submit"
+          disabled={isLoading || !emailPrefix}
+          className="w-full flex items-center justify-center gap-3 bg-[#01334c] hover:bg-[#012a3f] text-white rounded-full px-8 py-4 text-lg font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Rolling...
+            </>
+          ) : (
+            <>
+              <Dice6 className="h-5 w-5" />
+              Roll the dice!
+            </>
+          )}
+        </button>
+      </form>
+    </div>
   );
 }

@@ -1,21 +1,27 @@
-import { useState, useCallback, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { Dice3D } from "@/components/Dice3D";
-import { RollButton } from "@/components/RollButton";
 import { GiftSplash } from "@/components/GiftSplash";
 import { EmailModal } from "@/components/EmailModal";
-import { ThemeToggle } from "@/components/ThemeToggle";
-import { useTheme } from "@/hooks/useTheme";
-import { fetchPrizes, initiateRoll, confirmRoll, releaseRoll, Prize } from "@/lib/api";
-import { Settings } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { fetchPrizes, initiateRoll, confirmRoll, Prize } from "@/lib/api";
 import { toast } from "sonner";
+
+// Generate random dots for background
+function generateDots(count: number) {
+  return Array.from({ length: count }, (_, i) => ({
+    id: i,
+    left: Math.random() * 100,
+    top: Math.random() * 85, // Keep dots in upper 85% to avoid bottom white area
+    size: Math.random() * 10 + 6, // Bigger dots: 6-16px
+    delay: Math.random() * 5,
+    duration: Math.random() * 4 + 6,
+  }));
+}
 
 type DiceState = "idle" | "rolling" | "settled" | "camera-focus" | "showing-splash";
 
 export default function Index() {
-  const { theme, toggleTheme } = useTheme();
   const [diceState, setDiceState] = useState<DiceState>("idle");
+  const dots = useMemo(() => generateDots(50), []); // More dots for better effect
   const [settledFace, setSettledFace] = useState<number>(1);
   const [landedPosition, setLandedPosition] = useState<[number, number, number]>([0, -1, 0]);
   const [landedQuaternion, setLandedQuaternion] = useState<[number, number, number, number]>([0, 0, 0, 1]);
@@ -55,11 +61,12 @@ export default function Index() {
     };
   }, []);
 
-  const handleRollClick = useCallback(() => {
-    if (!canRoll || diceState !== "idle") return;
-    setShowEmailModal(true);
-    setRollError(undefined);
-  }, [canRoll, diceState]);
+  // Email modal is always shown on idle state now
+  useEffect(() => {
+    if (diceState === "idle" && canRoll) {
+      setShowEmailModal(true);
+    }
+  }, [diceState, canRoll]);
 
   const handleEmailSubmit = useCallback(async (email: string) => {
     setIsRolling(true);
@@ -233,62 +240,82 @@ export default function Index() {
   }, []);
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden">
-      <Dice3D
-        diceState={diceState}
-        onRollComplete={handleRollComplete}
-        onCameraFocusComplete={handleCameraFocusComplete}
-        isDark={theme === "dark"}
-        settledFace={settledFace}
-        landedPosition={landedPosition}
-        landedQuaternion={landedQuaternion}
-        targetFace={targetFace}
-        validFaces={validFaces}
-      />
-
-      <header className="absolute left-0 right-0 top-0 z-10 flex items-center justify-between p-4 sm:p-6">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground drop-shadow-sm">Lucky Dice</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground">Roll to win!</p>
-        </div>
-        <div className="flex items-center gap-1 sm:gap-2">
-          <ThemeToggle theme={theme} onToggle={toggleTheme} />
-          <Link to="/admin">
-            <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-background/50 backdrop-blur-sm">
-              <Settings className="h-4 w-4 sm:h-5 sm:w-5" />
-              <span className="sr-only">Admin Settings</span>
-            </Button>
-          </Link>
-        </div>
-      </header>
-
-      <div className="absolute bottom-0 left-0 right-0 z-10 flex flex-col items-center gap-3 sm:gap-4 p-4 sm:p-8 pb-6 sm:pb-12">
-        <RollButton
-          onClick={handleRollClick}
-          disabled={!canRoll || diceState !== "idle"}
-          rolling={diceState === "rolling"}
-          showingResult={diceState === "settled" || diceState === "camera-focus" || diceState === "showing-splash"}
-        />
-
-        {!canRoll && diceState === "idle" && (
-          <div className="flex flex-col items-center gap-2">
-            <p className="rounded-full bg-destructive/90 px-6 py-2 text-center text-sm font-medium text-destructive-foreground backdrop-blur-sm">
-              All prizes have been claimed!
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Thank you for participating. Check back later for more prizes.
-            </p>
-          </div>
-        )}
+    <div className="relative h-screen w-screen overflow-hidden sf-gradient-bg">
+      {/* Random dots overlay */}
+      <div className="sf-dots-overlay">
+        {dots.map((dot) => (
+          <div
+            key={dot.id}
+            className="sf-dot"
+            style={{
+              left: `${dot.left}%`,
+              top: `${dot.top}%`,
+              width: `${dot.size}px`,
+              height: `${dot.size}px`,
+              animationDelay: `${dot.delay}s`,
+              animationDuration: `${dot.duration}s`,
+            }}
+          />
+        ))}
       </div>
 
-      <EmailModal
-        isOpen={showEmailModal}
-        onSubmit={handleEmailSubmit}
-        onCancel={handleEmailCancel}
-        isLoading={isRolling}
-        error={rollError}
-      />
+      {/* Logo in top-left corner */}
+      <header className="absolute left-0 top-0 z-30 p-4 sm:p-6">
+        <img 
+          src="/logfo.png" 
+          alt="Peace & Joy" 
+          className="h-24 sm:h-32 md:h-36 w-auto"
+        />
+      </header>
+
+      {/* 3D Dice - full screen but dice positioned in upper area */}
+      <div className="absolute inset-0 z-10">
+        <Dice3D
+          diceState={diceState}
+          onRollComplete={handleRollComplete}
+          onCameraFocusComplete={handleCameraFocusComplete}
+          isDark={true}
+          settledFace={settledFace}
+          landedPosition={landedPosition}
+          landedQuaternion={landedQuaternion}
+          targetFace={targetFace}
+          validFaces={validFaces}
+        />
+      </div>
+
+      {/* Main content - Email form below dice */}
+      {diceState === "idle" && (
+        <div className="absolute inset-x-0 bottom-[20%] z-20 flex flex-col items-center justify-center px-4">
+          {/* Email form */}
+          <EmailModal
+            isOpen={showEmailModal}
+            onSubmit={handleEmailSubmit}
+            onCancel={handleEmailCancel}
+            isLoading={isRolling}
+            error={rollError}
+          />
+
+          {!canRoll && (
+            <div className="flex flex-col items-center gap-2 mt-4">
+              <p className="rounded-full bg-red-500/90 px-6 py-2 text-center text-sm font-medium text-white backdrop-blur-sm">
+                All prizes have been claimed!
+              </p>
+              <p className="text-xs text-white/70">
+                Thank you for participating. Check back later for more prizes.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Mascot in bottom-right corner */}
+      <div className="absolute bottom-0 right-0 z-20 pointer-events-none">
+        <img 
+          src="/bottom right.png" 
+          alt="Mascot" 
+          className="h-32 sm:h-48 md:h-56 w-auto"
+        />
+      </div>
 
       {wonPrize && diceState === "showing-splash" && (
         <GiftSplash 

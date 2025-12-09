@@ -3,14 +3,29 @@ import * as THREE from 'three';
 /**
  * Target rotations for each dice face to point up (Y+)
  * These are the Euler angles needed to rotate the dice so each face points up
+ * AND the number text is upright and readable from the camera (at z+)
+ * 
+ * Dice face layout:
+ * - Face 1: z+ (front), text rotation: none
+ * - Face 2: x+ (right), text rotation: Y = PI/2
+ * - Face 3: y+ (top), text rotation: X = -PI/2
+ * - Face 4: y- (bottom), text rotation: X = PI/2
+ * - Face 5: x- (left), text rotation: Y = -PI/2
+ * - Face 6: z- (back), text rotation: Y = PI
  */
 export const FACE_UP_ROTATIONS: Record<number, THREE.Euler> = {
-  1: new THREE.Euler(-Math.PI / 2, 0, 0),  // Face 1 (front z+) rotated to top
-  2: new THREE.Euler(0, 0, Math.PI / 2),   // Face 2 (right x+) rotated to top
-  3: new THREE.Euler(0, 0, 0),              // Face 3 (top y+) already up
-  4: new THREE.Euler(Math.PI, 0, 0),        // Face 4 (bottom y-) rotated to top
-  5: new THREE.Euler(0, 0, -Math.PI / 2),  // Face 5 (left x-) rotated to top
-  6: new THREE.Euler(Math.PI / 2, 0, 0),   // Face 6 (back z-) rotated to top
+  // Face 1 on top: rotate dice so z+ points up, text readable from front
+  1: new THREE.Euler(-Math.PI / 2, 0, 0),
+  // Face 2 on top: rotate dice so x+ points up, text readable from front  
+  2: new THREE.Euler(0, 0, -Math.PI / 2),
+  // Face 3 on top: already up, text readable from front
+  3: new THREE.Euler(0, 0, 0),
+  // Face 4 on top: rotate dice so y- points up (flip upside down)
+  4: new THREE.Euler(0, 0, Math.PI),
+  // Face 5 on top: rotate dice so x- points up
+  5: new THREE.Euler(0, 0, Math.PI / 2),
+  // Face 6 on top: rotate dice so z- points up
+  6: new THREE.Euler(Math.PI / 2, 0, 0),
 };
 
 /**

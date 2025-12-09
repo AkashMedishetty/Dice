@@ -17,6 +17,43 @@ import { toast } from "sonner";
 import { fetchPrizes, fetchEntries, fetchStats, fetchAllEntries, updatePrize, resetPrizes, Prize, Entry, StatsResponse } from "@/lib/api";
 import { upload } from '@vercel/blob/client';
 
+// Compress and resize image before upload
+async function compressImage(file: File, maxSize: number = 512): Promise<File> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let { width, height } = img;
+      
+      // Resize if larger than maxSize
+      if (width > maxSize || height > maxSize) {
+        if (width > height) {
+          height = (height / width) * maxSize;
+          width = maxSize;
+        } else {
+          width = (width / height) * maxSize;
+          height = maxSize;
+        }
+      }
+      
+      canvas.width = width;
+      canvas.height = height;
+      
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(img, 0, 0, width, height);
+      
+      canvas.toBlob((blob) => {
+        if (blob) {
+          resolve(new File([blob], file.name, { type: 'image/png' }));
+        } else {
+          resolve(file);
+        }
+      }, 'image/png', 0.9);
+    };
+    img.src = URL.createObjectURL(file);
+  });
+}
+
 export default function Admin() {
   const { theme, toggleTheme } = useTheme();
   
@@ -361,11 +398,14 @@ export default function Admin() {
                                   handlePrizeUpdate(prize.id, "icon", "⏳");
                                   
                                   try {
+                                    // Compress image to 512x512 max before upload
+                                    const compressedFile = await compressImage(file, 512);
+                                    
                                     const isProduction = window.location.hostname !== 'localhost';
                                     
                                     if (isProduction) {
                                       // Use Vercel Blob client-side upload (bypasses serverless size limits)
-                                      const blob = await upload(file.name, file, {
+                                      const blob = await upload(compressedFile.name, compressedFile, {
                                         access: 'public',
                                         handleUploadUrl: '/api/upload',
                                       });
@@ -373,7 +413,7 @@ export default function Admin() {
                                     } else {
                                       // Local dev uses multer with FormData
                                       const formData = new FormData();
-                                      formData.append('file', file);
+                                      formData.append('file', compressedFile);
                                       const response = await fetch('/api/upload', {
                                         method: 'POST',
                                         body: formData,

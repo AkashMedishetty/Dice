@@ -171,6 +171,9 @@ function CameraController({ dicePosition, onAnimationComplete, shouldAnimate }: 
     if (shouldAnimate && !hasAnimated.current) {
       hasAnimated.current = true;
       
+      // Reset camera up vector before animation to ensure correct orientation
+      camera.up.set(0, 1, 0);
+      
       // Use the camera animation utility with design-specified config
       // Duration: 1.5 seconds, easeInOut, position above dice
       timelineRef.current = animateCameraToFace(

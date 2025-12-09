@@ -50,6 +50,7 @@ export function animateCameraToFace(
   };
 
   // Target position: above and slightly in front of the dice
+  // Position camera at a fixed angle for consistent viewing
   const targetPosition = {
     x: dicePosition[0],
     y: dicePosition[1] + heightOffset,
@@ -59,6 +60,9 @@ export function animateCameraToFace(
   // Create timeline for coordinated animation
   const timeline = gsap.timeline({ onComplete });
 
+  // Reset camera up vector to ensure correct orientation
+  camera.up.set(0, 1, 0);
+
   // Animate camera position
   timeline.to(camera.position, {
     x: targetPosition.x,
@@ -67,6 +71,8 @@ export function animateCameraToFace(
     duration,
     ease,
     onUpdate: () => {
+      // Ensure up vector stays correct during animation
+      camera.up.set(0, 1, 0);
       // Keep camera looking at the dice during animation
       camera.lookAt(dicePosition[0], dicePosition[1], dicePosition[2]);
     },
@@ -113,6 +119,9 @@ export function resetCameraPosition(
 ): gsap.core.Timeline {
   const timeline = gsap.timeline();
 
+  // Reset up vector before animation
+  camera.up.set(0, 1, 0);
+
   timeline.to(camera.position, {
     x: defaultPosition[0],
     y: defaultPosition[1],
@@ -120,6 +129,8 @@ export function resetCameraPosition(
     duration,
     ease: 'power2.out',
     onUpdate: () => {
+      // Ensure up vector stays correct
+      camera.up.set(0, 1, 0);
       camera.lookAt(0, 0, 0);
     },
   });

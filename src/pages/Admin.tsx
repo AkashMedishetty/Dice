@@ -360,13 +360,32 @@ export default function Admin() {
                                   handlePrizeUpdate(prize.id, "icon", "⏳");
                                   
                                   try {
-                                    const response = await fetch(`/api/upload?filename=prize-${prize.id}-${Date.now()}.${file.name.split('.').pop()}`, {
-                                      method: 'POST',
-                                      body: file,
-                                    });
+                                    const filename = `prize-${prize.id}-${Date.now()}.${file.name.split('.').pop()}`;
+                                    
+                                    // For production (Vercel Blob) - send raw file
+                                    // For local dev - send FormData
+                                    const isProduction = window.location.hostname !== 'localhost';
+                                    
+                                    let response;
+                                    if (isProduction) {
+                                      // Vercel Blob expects raw file stream
+                                      response = await fetch(`/api/upload?filename=${encodeURIComponent(filename)}`, {
+                                        method: 'POST',
+                                        body: file,
+                                      });
+                                    } else {
+                                      // Local dev uses multer with FormData
+                                      const formData = new FormData();
+                                      formData.append('file', file);
+                                      response = await fetch('/api/upload', {
+                                        method: 'POST',
+                                        body: formData,
+                                      });
+                                    }
                                     
                                     if (!response.ok) {
-                                      throw new Error('Upload failed');
+                                      const errorData = await response.json().catch(() => ({}));
+                                      throw new Error(errorData.error || 'Upload failed');
                                     }
                                     
                                     const data = await response.json();
@@ -375,7 +394,7 @@ export default function Admin() {
                                   } catch (error) {
                                     console.error('Upload error:', error);
                                     handlePrizeUpdate(prize.id, "icon", originalIcon);
-                                    toast.error('Failed to upload image. Using local path instead.');
+                                    toast.error('Failed to upload image');
                                   }
                                 }}
                               />

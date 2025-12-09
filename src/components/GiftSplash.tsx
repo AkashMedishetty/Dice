@@ -153,8 +153,12 @@ export function GiftSplash({ gift, onClose, dicePosition }: GiftSplashProps) {
         </div>
 
         {/* Gift icon */}
-        <div ref={iconRef} className="mx-auto mb-4 sm:mb-8 flex h-28 w-28 sm:h-36 sm:w-36 md:h-44 md:w-44 items-center justify-center rounded-full bg-primary-foreground/15 text-5xl sm:text-7xl md:text-8xl shadow-2xl ring-2 sm:ring-4 ring-primary-foreground/20 backdrop-blur-sm">
-          {gift.icon}
+        <div ref={iconRef} className="mx-auto mb-4 sm:mb-8 flex h-28 w-28 sm:h-36 sm:w-36 md:h-44 md:w-44 items-center justify-center rounded-full bg-primary-foreground/15 text-5xl sm:text-7xl md:text-8xl shadow-2xl ring-2 sm:ring-4 ring-primary-foreground/20 backdrop-blur-sm overflow-hidden">
+          {gift.icon.startsWith('/') || gift.icon.startsWith('http') ? (
+            <img src={gift.icon} alt={gift.name} className="h-20 w-20 sm:h-28 sm:w-28 md:h-36 md:w-36 object-contain" />
+          ) : (
+            gift.icon
+          )}
         </div>
 
         {/* Gift details */}
@@ -169,16 +173,15 @@ export function GiftSplash({ gift, onClose, dicePosition }: GiftSplashProps) {
 
         {/* Collect button */}
         <div ref={buttonRef}>
-          <Button
+          <button
             onClick={handleClose}
-            size="lg"
-            className="group relative w-full max-w-xs sm:max-w-sm overflow-hidden rounded-full bg-primary-foreground py-5 sm:py-8 text-base sm:text-xl font-black text-primary shadow-2xl transition-all duration-300 hover:scale-105 active:scale-95 touch-manipulation"
+            className="w-full max-w-xs sm:max-w-sm rounded-full bg-white py-5 sm:py-8 text-base sm:text-xl font-black text-[#0040e0] shadow-2xl transition-all duration-300 hover:bg-gray-100 active:scale-95 touch-manipulation"
           >
-            <span className="relative z-10 flex items-center justify-center gap-2">
+            <span className="flex items-center justify-center gap-2">
               <Dice6 className="h-5 w-5 sm:h-6 sm:w-6" />
               Claim Your Prize
             </span>
-          </Button>
+          </button>
 
           <p className="mt-4 sm:mt-6 text-xs sm:text-sm font-medium text-primary-foreground/50 px-4">
             Present this screen at the registration desk

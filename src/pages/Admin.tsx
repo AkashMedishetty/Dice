@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Dice6, Search, Save, RotateCcw, Loader2, Download } from "lucide-react";
+import { ArrowLeft, Dice6, Search, Save, RotateCcw, Loader2, Download, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { fetchPrizes, fetchEntries, fetchStats, fetchAllEntries, updatePrize, resetPrizes, Prize, Entry, StatsResponse } from "@/lib/api";
 
@@ -309,8 +309,12 @@ export default function Admin() {
                     <Card key={prize.id} className={prize.inventory === 0 ? "opacity-60" : ""}>
                       <CardHeader className="pb-4">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-2xl">
-                            {prize.icon}
+                          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-2xl overflow-hidden">
+                            {prize.icon.startsWith('/') || prize.icon.startsWith('http') ? (
+                              <img src={prize.icon} alt={prize.name} className="h-10 w-10 object-contain" />
+                            ) : (
+                              prize.icon
+                            )}
                           </div>
                           <div>
                             <CardTitle className="text-lg">Dice Face {prize.id}</CardTitle>
@@ -333,25 +337,70 @@ export default function Admin() {
                             onChange={(e) => handlePrizeUpdate(prize.id, "description", e.target.value)}
                           />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label>Icon</Label>
+                        <div className="space-y-2">
+                          <Label>Icon (Emoji or Image)</Label>
+                          <div className="flex gap-2">
                             <Input
                               value={prize.icon}
                               onChange={(e) => handlePrizeUpdate(prize.id, "icon", e.target.value)}
-                              className="text-center text-xl"
-                              maxLength={2}
+                              placeholder="🎁 or upload image"
+                              className="flex-1"
                             />
+                            <label className="cursor-pointer">
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  
+                                  // Show loading state
+                                  const originalIcon = prize.icon;
+                                  handlePrizeUpdate(prize.id, "icon", "⏳");
+                                  
+                                  try {
+                                    const response = await fetch(`/api/upload?filename=prize-${prize.id}-${Date.now()}.${file.name.split('.').pop()}`, {
+                                      method: 'POST',
+                                      body: file,
+                                    });
+                                    
+                                    if (!response.ok) {
+                                      throw new Error('Upload failed');
+                                    }
+                                    
+                                    const data = await response.json();
+                                    handlePrizeUpdate(prize.id, "icon", data.url);
+                                    toast.success('Image uploaded!');
+                                  } catch (error) {
+                                    console.error('Upload error:', error);
+                                    handlePrizeUpdate(prize.id, "icon", originalIcon);
+                                    toast.error('Failed to upload image. Using local path instead.');
+                                  }
+                                }}
+                              />
+                              <Button type="button" variant="outline" size="icon" asChild>
+                                <span><Upload className="h-4 w-4" /></span>
+                              </Button>
+                            </label>
                           </div>
-                          <div className="space-y-2">
-                            <Label>Inventory</Label>
-                            <Input
-                              type="number"
-                              min={0}
-                              value={prize.inventory}
-                              onChange={(e) => handlePrizeUpdate(prize.id, "inventory", parseInt(e.target.value) || 0)}
-                            />
-                          </div>
+                          {(prize.icon.startsWith('/') || prize.icon.startsWith('http')) ? (
+                            <div className="mt-2 flex justify-center">
+                              <img src={prize.icon} alt="Prize icon" className="h-16 w-16 object-contain rounded-lg border" />
+                            </div>
+                          ) : null}
+                          <p className="text-xs text-muted-foreground">
+                            Upload image (256x256px recommended) or use emoji
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Inventory</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            value={prize.inventory}
+                            onChange={(e) => handlePrizeUpdate(prize.id, "inventory", parseInt(e.target.value) || 0)}
+                          />
                         </div>
                         <Button onClick={() => handlePrizeSave(prize.id)} className="w-full" size="sm">
                           <Save className="mr-2 h-4 w-4" />

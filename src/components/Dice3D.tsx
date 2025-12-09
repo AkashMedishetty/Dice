@@ -275,11 +275,17 @@ function DiceModel({ settled }: DiceModelProps = {}) {
           emissiveIntensity={settled ? 0.15 : 0}
         />
       </RoundedBox>
+      {/* Face 1 - Front (z+) */}
       <Text position={[0, 0, 1.02]} fontSize={0.7} color="white" anchorX="center" anchorY="middle">1</Text>
+      {/* Face 6 - Back (z-) */}
       <Text position={[0, 0, -1.02]} fontSize={0.7} color="white" rotation={[0, Math.PI, 0]} anchorX="center" anchorY="middle">6</Text>
-      <Text position={[1.02, 0, 0]} fontSize={0.7} color="white" rotation={[0, Math.PI / 2, 0]} anchorX="center" anchorY="middle">2</Text>
-      <Text position={[-1.02, 0, 0]} fontSize={0.7} color="white" rotation={[0, -Math.PI / 2, 0]} anchorX="center" anchorY="middle">5</Text>
+      {/* Face 2 - Right (x+) - rotated so text is upright when face is on top */}
+      <Text position={[1.02, 0, 0]} fontSize={0.7} color="white" rotation={[0, Math.PI / 2, -Math.PI / 2]} anchorX="center" anchorY="middle">2</Text>
+      {/* Face 5 - Left (x-) - rotated so text is upright when face is on top */}
+      <Text position={[-1.02, 0, 0]} fontSize={0.7} color="white" rotation={[0, -Math.PI / 2, Math.PI / 2]} anchorX="center" anchorY="middle">5</Text>
+      {/* Face 3 - Top (y+) */}
       <Text position={[0, 1.02, 0]} fontSize={0.7} color="white" rotation={[-Math.PI / 2, 0, 0]} anchorX="center" anchorY="middle">3</Text>
+      {/* Face 4 - Bottom (y-) */}
       <Text position={[0, -1.02, 0]} fontSize={0.7} color="white" rotation={[Math.PI / 2, 0, 0]} anchorX="center" anchorY="middle">4</Text>
     </>
   );

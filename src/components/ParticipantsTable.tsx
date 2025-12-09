@@ -123,7 +123,11 @@ export function ParticipantsTable({
                 <TableCell className="font-medium">{entry.email}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    <span className="text-xl">{entry.prizeIcon}</span>
+                    {entry.prizeIcon.startsWith('/') || entry.prizeIcon.startsWith('http') ? (
+                      <img src={entry.prizeIcon} alt={entry.prizeName} className="h-6 w-6 object-contain" />
+                    ) : (
+                      <span className="text-xl">{entry.prizeIcon}</span>
+                    )}
                     <span>{entry.prizeName}</span>
                   </div>
                 </TableCell>

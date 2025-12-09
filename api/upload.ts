@@ -1,11 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { put } from '@vercel/blob';
-
-export const config = {
-  api: {
-    bodyParser: false, // Disable body parser for file uploads
-  },
-};
+import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
@@ -17,26 +11,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).end();
   }
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
   try {
-    const filename = req.query.filename as string;
-    
-    if (!filename) {
-      return res.status(400).json({ error: 'Filename is required' });
-    }
+    const body = req.body as HandleUploadBody;
 
-    // Upload to Vercel Blob
-    const blob = await put(filename, req, {
-      access: 'public',
+    const jsonResponse = await handleUpload({
+      body,
+      request: req,
+      onBeforeGenerateToken: async (pathname) => {
+        // Validate file type
+        const allowedTypes = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
+        const ext = pathname.toLowerCase().slice(pathname.lastIndexOf('.'));
+        if (!allowedTypes.includes(ext)) {
+          throw new Error('Invalid file type');
+        }
+        
+        return {
+          allowedContentTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp'],
+          maximumSizeInBytes: 5 * 1024 * 1024, // 5MB
+        };
+      },
+      onUploadCompleted: async ({ blob }) => {
+        console.log('Upload completed:', blob.url);
+      },
     });
 
-    return res.status(200).json({ 
-      success: true, 
-      url: blob.url,
-    });
+    return res.status(200).json(jsonResponse);
   } catch (error) {
     console.error('Upload error:', error);
     return res.status(500).json({ 

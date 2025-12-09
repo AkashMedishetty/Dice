@@ -15,6 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ArrowLeft, Dice6, Search, Save, RotateCcw, Loader2, Download, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { fetchPrizes, fetchEntries, fetchStats, fetchAllEntries, updatePrize, resetPrizes, Prize, Entry, StatsResponse } from "@/lib/api";
+import { upload } from '@vercel/blob/client';
 
 export default function Admin() {
   const { theme, toggleTheme } = useTheme();
@@ -360,36 +361,32 @@ export default function Admin() {
                                   handlePrizeUpdate(prize.id, "icon", "⏳");
                                   
                                   try {
-                                    const filename = `prize-${prize.id}-${Date.now()}.${file.name.split('.').pop()}`;
-                                    
-                                    // For production (Vercel Blob) - send raw file
-                                    // For local dev - send FormData
                                     const isProduction = window.location.hostname !== 'localhost';
                                     
-                                    let response;
                                     if (isProduction) {
-                                      // Vercel Blob expects raw file stream
-                                      response = await fetch(`/api/upload?filename=${encodeURIComponent(filename)}`, {
-                                        method: 'POST',
-                                        body: file,
+                                      // Use Vercel Blob client-side upload (bypasses serverless size limits)
+                                      const blob = await upload(file.name, file, {
+                                        access: 'public',
+                                        handleUploadUrl: '/api/upload',
                                       });
+                                      handlePrizeUpdate(prize.id, "icon", blob.url);
                                     } else {
                                       // Local dev uses multer with FormData
                                       const formData = new FormData();
                                       formData.append('file', file);
-                                      response = await fetch('/api/upload', {
+                                      const response = await fetch('/api/upload', {
                                         method: 'POST',
                                         body: formData,
                                       });
+                                      
+                                      if (!response.ok) {
+                                        throw new Error('Upload failed');
+                                      }
+                                      
+                                      const data = await response.json();
+                                      handlePrizeUpdate(prize.id, "icon", data.url);
                                     }
                                     
-                                    if (!response.ok) {
-                                      const errorData = await response.json().catch(() => ({}));
-                                      throw new Error(errorData.error || 'Upload failed');
-                                    }
-                                    
-                                    const data = await response.json();
-                                    handlePrizeUpdate(prize.id, "icon", data.url);
                                     toast.success('Image uploaded!');
                                   } catch (error) {
                                     console.error('Upload error:', error);
